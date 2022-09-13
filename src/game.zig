@@ -46,6 +46,9 @@ pub const Product = struct {
     pub fn getTile(product: Product, pos: Vec3) Tile {
         return product.tiles(rectPointToIndex(pos, product.pos, product.size) orelse return Tile.air);
     }
+
+    // note: whenever setting a tile, also update the buffer data with
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferSubData.xhtml
 };
 
 pub const World = struct {

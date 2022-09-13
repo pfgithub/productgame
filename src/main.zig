@@ -12,18 +12,27 @@ const Attrib = enum(c_uint) {
         c.glEnableVertexAttribArray(Attrib.position.id());
         c.glEnableVertexAttribArray(Attrib.color.id());
 
-        c.glVertexAttribPointer(Attrib.position.id(), 2, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 4 * @sizeOf(f32)));
-        c.glVertexAttribPointer(Attrib.color.id(), 4, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 0));
+        c.glVertexAttribPointer(Attrib.position.id(), 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 0 * @sizeOf(f32)));
+        c.glVertexAttribPointer(Attrib.color.id(), 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 3 * @sizeOf(f32)));
     }
 };
+
+// why when I look up "opengl tilemap" is everyone talking about using two triangles per tile
+// like why not put it all in the shader? why have to have so many vertices and deal with chunking and all that
+
+// ok I want:
+// vec3 position (x, y, z) (how to make sure stuff appears in the right layer? maybe use an ortho projection matrix)
+//    i don't know how clip space works so probably I can just use an ortho projection matrix and not deal with it
+// vec3 tile_position (0..w, 0..h)
+// uint index (same for all six coordinates. says where in the sampler buffer the texture starts)
 const vertex_shader_source = (
     \\#version 330
-    \\in vec2 i_position;
-    \\in vec4 i_color;
+    \\in vec3 i_position;
+    \\in vec3 i_tile_position;
     \\out vec4 v_color;
     \\void main() {
-    \\    v_color = i_color;
-    \\    gl_Position = vec4( i_position, 0.0, 1.0 );
+    \\    gl_Position = vec4( i_position, 1.0 );
+    \\    v_color = vec4(i_tile_position, 1.0);
     \\}
 );
 const fragment_shader_source = (
@@ -36,7 +45,7 @@ const fragment_shader_source = (
     \\    // texelFetch(u_tbo_tex, byte_pos / 4 (rgba))
     \\    // alternatively, we could only use the red channel and then it would just be byte_pos directly
     \\    // seems like it could be useful to have 4 bytes per thing though
-    \\    o_color = vec4(texelFetch(u_tbo_tex, 0)) / vec4(255);
+    \\    //o_color = vec4(texelFetch(u_tbo_tex, 0)) / vec4(255);
     \\}
 );
 
@@ -71,6 +80,12 @@ pub fn main2() !void {
     try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MAJOR_VERSION, 3 ));
     try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MINOR_VERSION, 2 ));
     try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_PROFILE_MASK, c.SDL_GL_CONTEXT_PROFILE_CORE ));
+
+    const multisample = true;
+    if(multisample) {
+        try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLEBUFFERS, 1));
+        try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLESAMPLES, 16));
+    }
 
     var window_w: i32 = 1920 / 2;
     var window_h: i32 = 1080 / 2;
@@ -117,6 +132,8 @@ pub fn main2() !void {
     var tiles_texture: c.GLuint = undefined;
     try sdl.gewrap(c.glGenTextures(1, &tiles_texture));
 
+    try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
+
     _ = context;
 
     var fullscreen = false;
@@ -151,9 +168,7 @@ pub fn main2() !void {
         }
 
         try sdl.gewrap(c.glViewport(0, 0, window_w, window_h));
-        try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
         try sdl.gewrap(c.glClearColor(1.0, 0.0, 1.0, 0.0));
-
         try sdl.gewrap(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT));
 
         try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
@@ -165,14 +180,13 @@ pub fn main2() !void {
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, vertex_buffer));
 
         const vertex_buffer_data = [_]c.GLfloat{
-        // rgba|xy
-            1, 0, 0, 1, -0.5, -0.5,
-            0, 1, 0, 1, 0.5, -0.5,
-            0, 0, 1, 1, 0.5, 0.5, 
-
-            1, 0, 0, 1, -0.5, -0.5,
-            0, 0, 1, 1, 0.5, 0.5,
-            1, 1, 1, 1, -0.5, 0.5,
+            // xyz|tile_xyz
+            -0.5, -0.2, 0,    0, 0, 0,
+            0.5, -0.5, 0,     1, 0, 0,
+            0.5, 0.5, 0,      1, 1, 0,
+            -0.5, -0.2, 0,   0, 0, 0,
+            0.5, 0.5, 0,      1, 1, 0,
+            -0.5, 0.5, 0,     0, 1, 0,
         };
         try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_buffer_data)), @ptrCast(?*const anyopaque, &vertex_buffer_data), c.GL_DYNAMIC_DRAW));
 
