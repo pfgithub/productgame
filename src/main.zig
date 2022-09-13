@@ -29,13 +29,36 @@ const vertex_shader_source = (
 const fragment_shader_source = (
     \\#version 330
     \\in vec4 v_color;
+    \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
     \\void main() {
     \\    o_color = v_color;
+    \\    // texelFetch(u_tbo_tex, byte_pos / 4 (rgba))
+    \\    // alternatively, we could only use the red channel and then it would just be byte_pos directly
+    \\    // seems like it could be useful to have 4 bytes per thing though
+    \\    o_color = vec4(texelFetch(u_tbo_tex, 0)) / vec4(255);
     \\}
 );
 
+// https://www.khronos.org/opengl/wiki/Buffer_Texture
+
+var global_allocator: ?std.mem.Allocator = null;
+pub fn allocator() std.mem.Allocator {
+    return global_allocator.?;
+}
+
 pub fn main() !void {
+    main2() catch |e| switch(e) {
+        error.ShaderCompilationFailed => std.os.exit(1),
+        else => return e,
+    };
+}
+
+pub fn main2() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if(gpa.deinit()) unreachable;
+    global_allocator = gpa.allocator();
+
     try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
 
     try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_DOUBLEBUFFER, 1 ));
@@ -78,6 +101,22 @@ pub fn main() !void {
 
     Attrib.activate();
 
+    const u_tbo_tex = c.glGetUniformLocation(shader_program, "u_tbo_tex");
+
+    var tiles_data_buffer: c.GLuint = undefined;
+    try sdl.gewrap(c.glGenBuffers(1, &tiles_data_buffer));
+    try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, tiles_data_buffer));
+    const tiles_buffer_data = [_]u8{
+        255, 100, 50, 255,
+        0, 100, 255, 255,
+        255, 255, 0, 255,
+        0, 0, 255, 255,
+    };
+    try sdl.gewrap(c.glBufferData(c.GL_TEXTURE_BUFFER, @sizeOf(@TypeOf(tiles_buffer_data)), @ptrCast(?*const anyopaque, &tiles_buffer_data), c.GL_DYNAMIC_DRAW));
+
+    var tiles_texture: c.GLuint = undefined;
+    try sdl.gewrap(c.glGenTextures(1, &tiles_texture));
+
     _ = context;
 
     var fullscreen = false;
@@ -116,6 +155,11 @@ pub fn main() !void {
         try sdl.gewrap(c.glClearColor(1.0, 0.0, 1.0, 0.0));
 
         try sdl.gewrap(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT));
+
+        try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
+        try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, tiles_texture));
+        try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, tiles_data_buffer));
+        try sdl.gewrap(c.glUniform1i(u_tbo_tex, 0));
 
         try sdl.gewrap(c.glBindVertexArray(vertex_array));
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, vertex_buffer));

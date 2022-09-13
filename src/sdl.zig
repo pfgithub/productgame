@@ -1,4 +1,5 @@
 const std = @import("std");
+const allocator = @import("main.zig").allocator;
 pub const c = @cImport({
     @cInclude("stdio.h");
     @cInclude("stdint.h");
@@ -17,13 +18,28 @@ pub fn sewrap(return_value: c_int) !void {
 
 pub fn createCompileShader(kind: c_uint, source: []const u8) !c_uint {
     const shader = try gewrap(c.glCreateShader(kind));
+
     try gewrap(c.glShaderSource(shader, 1, &source.ptr, &@intCast(c_int, source.len)));
+    errdefer c.glDeleteShader(shader);
+
     try gewrap(c.glCompileShader(shader));
 
     var status: c.GLint = undefined;
     try gewrap(c.glGetShaderiv(shader, c.GL_COMPILE_STATUS, &status));
     if(status == c.GL_FALSE) {
+        var max_length: c.GLint = undefined;
+        try gewrap(c.glGetShaderiv(shader, c.GL_INFO_LOG_LENGTH, &max_length));
+
+        const err_log = allocator().alloc(c.GLchar, @intCast(usize, max_length)) catch @panic("oom");
+        defer allocator().free(err_log);
+
+        var str_len: c.GLint = undefined;
+	    c.glGetShaderInfoLog(shader, @intCast(c.GLint, err_log.len), &str_len, err_log.ptr);
+
         std.log.err("GL Error: Shader compilation failed", .{});
+
+        std.debug.print("--- msg ---\n{s}", .{err_log[0..@intCast(usize, str_len)]});
+
         return error.ShaderCompilationFailed;
     }
 

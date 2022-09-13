@@ -5,6 +5,8 @@
   - we don't have to start with this, we can start as individual levels and then link stuff
      together
 - histograms (we'll want to validate solutions serverside probably. shouldn't be too hard)
+- [!] device must loop after the first cycle (the state after the second cycle must = the
+  state after the first cycle)
 
 there are two layers
 
@@ -35,3 +37,16 @@ oh also something to experiment with:
 
 having a character is important for keeping your view restricted in a large map. that or fog of
 war.
+
+---
+
+thinking about this made me
+
+- imagine minecraft but infinifactory
+
+anyway might not work for physics, large objects have too many blocks to check while moving
+
+but it would be so cool having factories in minecraft that move blocks around
+
+also, interestingly, everything is always grid-aligned. it only appears offsetted because of
+animation.
