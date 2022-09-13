@@ -10,15 +10,50 @@ pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 const Attrib = enum(c_uint) {
     position,
     color,
+    tile_dat_ptr,
+    pub const all_attributes = &[_]Attrib{.position, .color, .tile_dat_ptr};
     pub fn id(attrib: Attrib) c_uint {
         return @enumToInt(attrib);
     }
+    pub fn ctype(attrib: Attrib) c.GLenum {
+        return switch(attrib) {
+            .position => c.GL_FLOAT,
+            .color => c.GL_FLOAT,
+            .tile_dat_ptr => c.GL_UNSIGNED_INT,
+        };
+    }
+    pub fn count(attrib: Attrib) usize {
+        return switch(attrib) {
+            .position => 3,
+            .color => 3,
+            .tile_dat_ptr => 1,
+        };
+    }
+    pub fn size(attrib: Attrib) usize {
+        return switch(attrib) {
+            .position => @sizeOf(c.GLfloat) * 3,
+            .color => @sizeOf(c.GLfloat) * 3,
+            .tile_dat_ptr => @sizeOf(c.GLuint) * 1,
+        };
+    }
     pub fn activate() void {
-        c.glEnableVertexAttribArray(Attrib.position.id());
-        c.glEnableVertexAttribArray(Attrib.color.id());
-
-        c.glVertexAttribPointer(Attrib.position.id(), 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 0 * @sizeOf(f32)));
-        c.glVertexAttribPointer(Attrib.color.id(), 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(f32) * 6, @intToPtr(?*const anyopaque, 3 * @sizeOf(f32)));
+        var total: usize = 0;
+        for(all_attributes) |attrib| {
+            total += attrib.size();
+        }
+        var stride: usize = 0;
+        for(all_attributes) |attrib| {
+            c.glEnableVertexAttribArray(attrib.id());
+            const c_count = @intCast(c.GLint, attrib.count());
+            const c_total = @intCast(c.GLint, total);
+            const c_stride = @intToPtr(?*const anyopaque, stride);
+            if(attrib.ctype() == c.GL_UNSIGNED_INT) {
+                c.glVertexAttribIPointer(attrib.id(), c_count, attrib.ctype(), c_total, c_stride);
+            }else{
+                c.glVertexAttribPointer(attrib.id(), c_count, attrib.ctype(), c.GL_FALSE, c_total, c_stride);
+            }
+            stride += attrib.size();
+        }
     }
 };
 
@@ -34,14 +69,18 @@ const vertex_shader_source = (
     \\#version 330
     \\in vec3 i_position;
     \\in vec3 i_tile_position;
+    \\in uint i_tile_data_ptr;
+    \\flat out uint v_tile_data_ptr;
     \\out vec4 v_color;
     \\void main() {
     \\    gl_Position = vec4( i_position, 1.0 );
-    \\    v_color = vec4(i_tile_position, 1.0);
+    \\    v_color = vec4(i_tile_position / 10.0, 1.0);
+    \\    v_tile_data_ptr = i_tile_data_ptr;
     \\}
 );
 const fragment_shader_source = (
     \\#version 330
+    \\flat in uint v_tile_data_ptr;
     \\in vec4 v_color;
     \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
@@ -125,14 +164,16 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBindVertexArray(renderer.vertex_array));
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
 
+
+
         const vertex_buffer_data = [_]c.GLfloat{
-            // xyz|tile_xyz
-            -0.5, -0.2, 0,    0, 0, 0,
-            0.5, -0.5, 0,     1, 0, 0,
-            0.5, 0.5, 0,      1, 1, 0,
-            -0.5, -0.2, 0,   0, 0, 0,
-            0.5, 0.5, 0,      1, 1, 0,
-            -0.5, 0.5, 0,     0, 1, 0,
+            // xyz|tile_xyz|
+            -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            0.5, -0.5, 0,     10, 0, 0,  @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            0.5, 0.5, 0,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            0.5, 0.5, 0,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            -0.5, 0.5, 0,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
         };
         try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_buffer_data)), @ptrCast(?*const anyopaque, &vertex_buffer_data), c.GL_STATIC_DRAW));
 

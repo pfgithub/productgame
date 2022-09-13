@@ -36,6 +36,7 @@ pub const Product = struct {
     id: usize,
     // MxN array of tiles
     tiles: []Tile,
+    tiles_updated: usize, // increment every time a tile is changed. this tells the renderer to update the data.
     pos: Vec3,
     size: Vec3,
 
