@@ -13,7 +13,6 @@ pub fn pointInRect(point: Vec3, rect_pos: Vec3, rect_size: Vec3) bool {
 pub fn rectPointToIndex(point: Vec3, rect_pos: Vec3, rect_size: Vec3) ?usize {
     if(!pointInRect(point, rect_pos, rect_size)) return null;
     const object_space_pos = rect_pos - point;
-    const osp = object_space_pos;
     // x + (y*w) + (z*w*h)
     var res = 0;
     inline for(.{z, y, x}) |coord| {
@@ -34,6 +33,7 @@ pub const Tile = enum(u8) {
 };
 
 pub const Product = struct {
+    id: usize,
     // MxN array of tiles
     tiles: []Tile,
     pos: Vec3,
@@ -56,7 +56,7 @@ pub const World = struct {
     // to find a specific tile in the world:
     // - 1. filter products by bounding box
     // - 2. check if the product has that tile
-    fn getTile(world: World, pos: Vec3, level: Level) Tile {
+    fn getTile(world: World, pos: Vec3) Tile {
         for(world.products) |product| {
             const res = product.getTile(pos);
             if(res != .air) return res;
