@@ -12,64 +12,88 @@ const log = std.log.scoped(.render);
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
 
+// offset: @offsetOf(i_position)
+// offset: @offsetOf(i_tile_position)
+// offset: @offsetOf(i_tile_data_ptr)
+// stride: @sizeOf
+
+// strgen:
+fn attribTypeStr(comptime a: type) []const u8 {
+    if(a == [3]f32) return "vec3";
+    if(a == c_uint) return "uint";
+    @compileError("TODO support type");
+}
+fn attribFields(comptime a: type) []const AttribTypeInfo {
+    var infos: []const AttribTypeInfo = &.{};
+    for(std.meta.fields(a)) |field, i| {
+        infos = infos ++ &[_]AttribTypeInfo{
+            attribTypeInfo(i, field.name, field.field_type, @sizeOf(a), @offsetOf(a, field.name)),
+        };
+    }
+    return infos;
+}
+fn attribCodegen(comptime a: type) []const u8 {
+    var res: []const u8 = "";
+    for(attribFields(a)) |attribute, i| {
+        if(i != 0) res = res ++ " ";
+        res = res ++ "in " ++ attribute.glsl_type_str ++ " " ++ attribute.name ++ ";";
+    }
+    return res;
+}
+const AttribTypeInfo = struct {
+    id: c.GLuint,
+    name: [:0]const u8,
+    count: c.GLint,
+    cenum: c.GLenum,
+    mode: enum{int, float},
+    stride: c.GLsizei,
+    offset: ?*anyopaque,
+
+    glsl_type_str: []const u8,
+};
+fn attribTypeInfo(i: usize, name: []const u8, comptime a: type, stride: usize, offset: usize) AttribTypeInfo {
+    const c_name: [:0]const u8 = (name ++ "\x00")[0..name.len:0];
+    const c_id = @intCast(c.GLuint, i);
+    const c_stride = @intCast(c.GLsizei, stride);
+    const c_offset = @intToPtr(?*anyopaque, offset);
+    if(a == [3]f32) return AttribTypeInfo{
+        .count = 3,
+        .cenum = c.GL_FLOAT,
+        .mode = .float,
+
+        .id = c_id,
+        .name = c_name,
+        .stride = c_stride,
+        .offset = c_offset,
+        .glsl_type_str = attribTypeStr(a),
+    };
+    if(a == c_uint) return AttribTypeInfo{
+        .count = 3,
+        .cenum = c.GL_UNSIGNED_INT,
+        .mode = .int,
+
+        .id = c_id,
+        .name = c_name,
+        .stride = c_stride,
+        .offset = c_offset,
+        .glsl_type_str = attribTypeStr(a),
+    };
+    @compileError("todo support type");
+}
+
 const Attrib = enum(c_uint) {
-    position,
-    tile_position,
-    tile_dat_ptr,
-    pub const all_attributes = &[_]Attrib{.position, .tile_position, .tile_dat_ptr};
-    pub fn id(attrib: Attrib) c_uint {
-        return @enumToInt(attrib);
-    }
-    pub fn name(attrib: Attrib) [*:0]const u8 {
-        return switch(attrib) {
-            .position => "i_position",
-            .tile_position => "i_tile_position",
-            .tile_dat_ptr => "i_tile_data_ptr",
-        };
-    }
-    pub fn ctype(attrib: Attrib) c.GLenum {
-        return switch(attrib) {
-            .position => c.GL_FLOAT,
-            .tile_position => c.GL_FLOAT,
-            .tile_dat_ptr => c.GL_UNSIGNED_INT,
-        };
-    }
-    pub fn count(attrib: Attrib) usize {
-        return switch(attrib) {
-            .position => 3,
-            .tile_position => 3,
-            .tile_dat_ptr => 1,
-        };
-    }
-    pub fn size(attrib: Attrib) usize {
-        return switch(attrib) {
-            .position => @sizeOf(c.GLfloat) * 3,
-            .tile_position => @sizeOf(c.GLfloat) * 3,
-            .tile_dat_ptr => @sizeOf(c.GLuint) * 1,
-        };
-    }
     pub fn bind(shader_prog: c_uint) !void {
-        for(all_attributes) |attrib| {
-            try sdl.gewrap(c.glBindAttribLocation(shader_prog, attrib.id(), attrib.name()));
+        for(comptime attribFields(VertexInput)) |attrib| {
+            try sdl.gewrap(c.glBindAttribLocation(shader_prog, attrib.id, attrib.name.ptr));
         }
     }
     pub fn activate() !void {
-        var total: usize = 0;
-        for(all_attributes) |attrib| {
-            total += attrib.size();
-        }
-        var stride: usize = 0;
-        for(all_attributes) |attrib| {
-            c.glEnableVertexAttribArray(attrib.id());
-            const c_count = @intCast(c.GLint, attrib.count());
-            const c_total = @intCast(c.GLint, total);
-            const c_stride = @intToPtr(?*const anyopaque, stride);
-            if(attrib.ctype() == c.GL_UNSIGNED_INT) {
-                try sdl.gewrap(c.glVertexAttribIPointer(attrib.id(), c_count, attrib.ctype(), c_total, c_stride));
-            }else{
-                try sdl.gewrap(c.glVertexAttribPointer(attrib.id(), c_count, attrib.ctype(), c.GL_FALSE, c_total, c_stride));
+        for(comptime attribFields(VertexInput)) |attrib| {
+            c.glEnableVertexAttribArray(attrib.id);
+            switch(attrib.mode) {
+                .int => try sdl.gewrap(c.glVertexAttribIPointer(attrib.id, attrib.count, attrib.cenum, attrib.stride, attrib.offset)),
+                .float => try sdl.gewrap(c.glVertexAttribPointer(attrib.id, attrib.count, attrib.cenum, c.GL_FALSE, attrib.stride, attrib.offset)),
             }
-            stride += attrib.size();
         }
     }
 };
@@ -82,11 +106,14 @@ const Attrib = enum(c_uint) {
 //    i don't know how clip space works so probably I can just use an ortho projection matrix and not deal with it
 // vec3 tile_position (0..w, 0..h)
 // uint index (same for all six coordinates. says where in the sampler buffer the texture starts)
+const VertexInput = struct {
+    i_position: [3]f32,
+    i_tile_position: [3]f32,
+    i_tile_data_ptr: c_uint,
+};
 const vertex_shader_source = (
     \\#version 330
-    \\in vec3 i_position;
-    \\in vec3 i_tile_position;
-    \\in uint i_tile_data_ptr;
+    ++ "\n" ++ attribCodegen(VertexInput) ++
     \\flat out int v_tile_data_ptr;
     \\out vec3 v_tile_position;
     \\out vec3 v_qposition;
