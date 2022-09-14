@@ -40,26 +40,33 @@ fn shaderInputCodegen(comptime a: type) []const u8 {
     }
     return res;
 }
+const AttribTypeMode = enum{int, float};
 const AttribTypeInfo = struct {
     id: c.GLuint,
     name: [:0]const u8,
     count: c.GLint,
     cenum: c.GLenum,
-    mode: enum{int, float},
+    mode: AttribTypeMode,
     stride: c.GLsizei,
     offset: ?*anyopaque,
 
     glsl_type_str: []const u8,
 };
+fn attribTypeCountCenumMode(comptime a: type) struct {count: c.GLint, cenum: c.GLenum, mode: AttribTypeMode} {
+    if(a == [3]c.GLfloat) return .{.count = 3, .cenum = c.GL_FLOAT, .mode = .float};
+    if(a == c.GLuint) return .{.count = 1, .cenum = c.GL_UNSIGNED_INT, .mode = .int};
+    @compileError("todo support type");
+}
 fn attribTypeInfo(i: usize, name: []const u8, comptime a: type, stride: usize, offset: usize) AttribTypeInfo {
     const c_name: [:0]const u8 = (name ++ "\x00")[0..name.len:0];
     const c_id = @intCast(c.GLuint, i);
     const c_stride = @intCast(c.GLsizei, stride);
     const c_offset = @intToPtr(?*anyopaque, offset);
-    if(a == [3]c.GLfloat) return AttribTypeInfo{
-        .count = 3,
-        .cenum = c.GL_FLOAT,
-        .mode = .float,
+    const cmodes = attribTypeCountCenumMode(a);
+    return AttribTypeInfo{
+        .count = cmodes.count,
+        .cenum = cmodes.cenum,
+        .mode = cmodes.mode,
 
         .id = c_id,
         .name = c_name,
@@ -67,18 +74,6 @@ fn attribTypeInfo(i: usize, name: []const u8, comptime a: type, stride: usize, o
         .offset = c_offset,
         .glsl_type_str = attribTypeStr(a),
     };
-    if(a == c_uint) return AttribTypeInfo{
-        .count = 3,
-        .cenum = c.GL_UNSIGNED_INT,
-        .mode = .int,
-
-        .id = c_id,
-        .name = c_name,
-        .stride = c_stride,
-        .offset = c_offset,
-        .glsl_type_str = attribTypeStr(a),
-    };
-    @compileError("todo support type");
 }
 fn shaderBindAttributes(comptime shader: type, shader_prog: c_uint) !void {
     for(comptime attribFields(shader.Vertex)) |attrib| {
