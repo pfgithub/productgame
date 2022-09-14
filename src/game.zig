@@ -33,8 +33,10 @@ pub const Tile = enum(u8) {
     spawner,
 };
 
+pub const ProductID = enum(usize) {_};
+
 pub const Product = struct {
-    id: usize,
+    id: ProductID,
     // MxN array of tiles
     tiles: []Tile,
     tiles_updated: usize, // increment every time a tile is changed. this tells the renderer to update the data.

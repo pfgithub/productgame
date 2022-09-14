@@ -1,7 +1,7 @@
 //! deals with opengl. leaky abstraction.
 
 const std = @import("std");
-const allocator = @import("main").allocator;
+const allocator = @import("main.zig").allocator;
 const sdl = @import("sdl.zig");
 const plat = @import("platform.zig");
 const game = @import("game.zig");
@@ -116,15 +116,27 @@ const fragment_shader_source = (
 
 // the vertex buffer is regenerated every frame because it's tiny so who cares
 
+pub const ProductRenderData = struct {
+    id: game.ProductID,
+
+    last_updated: usize,
+
+    buffer_pos: usize,
+    buffer_size: usize,
+};
+
 pub const Renderer = struct {
     platform: *plat.Platform,
     world: *const game.World,
 
     vertex_array: c.GLuint,
     vertex_buffer: c.GLuint,
+    vertices: c.GLint,
     u_tbo_tex: c.GLint,
     tiles_data_buffer: c.GLuint,
     tiles_texture: c.GLuint,
+
+    product_render_data: std.ArrayList(ProductRenderData),
 
     pub fn init(platform: *plat.Platform, world: *const game.World) !Renderer {
         var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, vertex_shader_source);
@@ -161,15 +173,20 @@ pub const Renderer = struct {
 
         try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
 
+        var product_render_data = std.ArrayList(ProductRenderData).init(allocator());
+
         return .{
             .platform = platform,
             .world = world,
 
             .vertex_array = vertex_array,
             .vertex_buffer = vertex_buffer,
+            .vertices = 0,
             .u_tbo_tex = u_tbo_tex,
             .tiles_data_buffer = tiles_data_buffer,
             .tiles_texture = tiles_texture,
+
+            .product_render_data = product_render_data,
         };
     }
 
@@ -181,11 +198,9 @@ pub const Renderer = struct {
         try renderer.renderWorld();
     }
 
-    pub fn renderWorld(renderer: *Renderer) !void {
-        try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
-
-        try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
-        const byte_data = [_]u8{
+    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat)) !void {
+        _ = renderer;
+        const byte_data = [_]u8{    
             // width, height, depth, 0
             10, 10, 1, 0,
         } ++ ([_]u8{
@@ -195,18 +210,7 @@ pub const Renderer = struct {
             4, 0, 0, 0, // id 4
             // we don't need to store this, just recreate it when it changes
         } ** 50);
-        try sdl.gewrap(c.glBufferSubData(c.GL_TEXTURE_BUFFER, 6 * 4, @sizeOf(@TypeOf(byte_data)), &byte_data));
-
-        try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
-        try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
-        try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));
-
-    
-        try sdl.gewrap(c.glBindVertexArray(renderer.vertex_array));
-        try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
-
-
-        const vertex_buffer_data = [_]c.GLfloat{
+        try final_rectangles.appendSlice(&[_]c.GLfloat{
             // xyz|tile_xyz|
             -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
             0.5, -0.5, 0,     10, 0, 0,  @bitCast(c.GLfloat, @as(c.GLint, 6)),
@@ -218,9 +222,31 @@ pub const Renderer = struct {
             -0.3, -0.2, -0.5,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
             0.6, 0.5, -0.5,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
             -0.5, 0.4, -0.5,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
-        };
-        try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_buffer_data)), @ptrCast(?*const anyopaque, &vertex_buffer_data), c.GL_STATIC_DRAW));
+        });
+        try sdl.gewrap(c.glBufferSubData(c.GL_TEXTURE_BUFFER, 6 * 4, @sizeOf(@TypeOf(byte_data)), &byte_data));
+    }
 
-        try sdl.gewrap(c.glDrawArrays(c.GL_TRIANGLES, 0, vertex_buffer_data.len / 7));
+    pub fn updateBuffers(renderer: *Renderer) !void {
+        var final_rectangles = std.ArrayList(c.GLfloat).init(allocator());
+        defer final_rectangles.deinit();
+
+        try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
+        try renderer.updateProduct(&final_rectangles);
+        try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
+        try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
+
+        // 2. update rectangles
+        try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
+        const vertex_buffer_data = final_rectangles.items;
+        try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(c_long, @sizeOf(c.GLfloat) * vertex_buffer_data.len), @ptrCast(?*const anyopaque, vertex_buffer_data), c.GL_STATIC_DRAW));
+        renderer.vertices = @intCast(c.GLint, vertex_buffer_data.len / 7);
+    }
+
+    pub fn renderWorld(renderer: *Renderer) !void {
+        try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
+        try renderer.updateBuffers();
+        try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));
+        try sdl.gewrap(c.glBindVertexArray(renderer.vertex_array));
+        try sdl.gewrap(c.glDrawArrays(c.GL_TRIANGLES, 0, renderer.vertices));
     }
 };
