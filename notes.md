@@ -1,3 +1,13 @@
+## notes
+
+consider:
+
+https://github.com/hexops/mach/blob/main/examples/triangle/main.zig
+
+webgpu triangle
+
+it's probably too early stage and we'll run into binding and documentation issues unfortunately
+
 ## NEXT STEPS
 
 getting tiles rendering:
