@@ -1,10 +1,11 @@
 const std = @import("std");
 const allocator = @import("main").allocator;
 
-const x = 0;
-const y = 1;
-const z = 2;
-const Vec3 = std.meta.Vector(3, i32);
+pub const x = 0;
+pub const y = 1;
+pub const z = 2;
+pub const Vec2 = std.meta.Vector(2, i32);
+pub const Vec3 = std.meta.Vector(3, i32);
 
 pub fn pointInRect(point: Vec3, rect_pos: Vec3, rect_size: Vec3) bool {
     return @reduce(.Or, point < rect_pos) or @reduce(.Or, point >= rect_pos + rect_size);

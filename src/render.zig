@@ -1,6 +1,9 @@
+//! deals with opengl. leaky abstraction.
+
 const std = @import("std");
 const allocator = @import("main").allocator;
 const sdl = @import("sdl.zig");
+const plat = @import("platform.zig");
 const game = @import("game.zig");
 const c = sdl.c;
 
@@ -99,7 +102,7 @@ const fragment_shader_source = (
 // the vertex buffer is regenerated every frame because it's tiny so who cares
 
 pub const Renderer = struct {
-    window: *c.SDL_Window,
+    platform: *plat.Platform,
     world: *const game.World,
 
     vertex_array: c.GLuint,
@@ -108,7 +111,7 @@ pub const Renderer = struct {
     tiles_data_buffer: c.GLuint,
     tiles_texture: c.GLuint,
 
-    pub fn init(window: *c.SDL_Window, world: *const game.World) !Renderer {
+    pub fn init(platform: *plat.Platform, world: *const game.World) !Renderer {
         var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, vertex_shader_source);
         var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, fragment_shader_source);
 
@@ -144,7 +147,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
 
         return .{
-            .window = window,
+            .platform = platform,
             .world = world,
 
             .vertex_array = vertex_array,
@@ -153,6 +156,14 @@ pub const Renderer = struct {
             .tiles_data_buffer = tiles_data_buffer,
             .tiles_texture = tiles_texture,
         };
+    }
+
+    pub fn renderFrame(renderer: *Renderer) !void {
+        try sdl.gewrap(c.glViewport(0, 0, renderer.platform.window_size[game.x], renderer.platform.window_size[game.y]));
+        try sdl.gewrap(c.glClearColor(1.0, 0.0, 1.0, 0.0));
+        try sdl.gewrap(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT));
+
+        try renderer.renderWorld();
     }
 
     pub fn renderWorld(renderer: *Renderer) !void {

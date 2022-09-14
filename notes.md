@@ -1,3 +1,17 @@
+## NEXT STEPS
+
+getting tiles rendering:
+
+- in render.zig, write some data to the tiles_data_buffer with glBufferSubData
+   - the data: `[width, height, depth, 0]` followed by `[tile_idx, 0, 0, 0][]`
+- update the shader to read the data (it has to read the width/height,… first to know what index to read from)
+- make some textures. can even program them procedurally on the shader if we want but
+  it's probably better to go with images for now
+- we can even do connected textures!
+
+
+## original notes
+
 - top down
 - zachlike
 - physical, continuous map. maybe somewhat open world but probably quite gated
