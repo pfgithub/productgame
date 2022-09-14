@@ -85,4 +85,9 @@ pub const World = struct {
         }
         return Tile.air;
     }
+
+    fn physicsStep(world: *World) void {
+        // 1. conveyors move
+        // - an object can only move in one direction at once
+    }
 };
