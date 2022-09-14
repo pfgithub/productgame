@@ -1,5 +1,5 @@
 const std = @import("std");
-const allocator = @import("main").allocator;
+const allocator = @import("main.zig").allocator;
 
 pub const x = 0;
 pub const y = 1;
@@ -43,7 +43,7 @@ pub const Product = struct {
     pos: Vec3,
     size: Vec3,
 
-    pub fn deinit(product: Product) void {
+    pub fn deinit(product: *Product) void {
         allocator().free(product.tiles);
     }
 
@@ -56,12 +56,27 @@ pub const Product = struct {
 };
 
 pub const World = struct {
-    products: []Product,
+    products: std.ArrayList(Product),
+
+    pub fn init() !World {
+        const products = std.ArrayList(Product).init(allocator());
+
+        return .{
+            .products = products,
+        };
+    }
+    pub fn deinit(world: *World) void {
+        for(world.products.items) |*item| {
+            item.deinit();
+        }
+        world.products.deinit();
+    }
+
     // to find a specific tile in the world:
     // - 1. filter products by bounding box
     // - 2. check if the product has that tile
     fn getTile(world: World, pos: Vec3) Tile {
-        for(world.products) |product| {
+        for(world.products.items) |product| {
             const res = product.getTile(pos);
             if(res != .air) return res;
         }

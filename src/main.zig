@@ -26,9 +26,33 @@ pub fn main2() !void {
 
     var platform = try plat.Platform.init();
 
-    var world = game.World{
-        .products = &.{},
-    };
+    var world = try game.World.init();
+    defer world.deinit();
+
+    {
+        const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
+            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+            .block, .conveyor_a, .conveyor_a, .conveyor_a, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+        });
+        const newproduct = game.Product{
+            .id = @intToEnum(game.ProductID, 1),
+            // MxN array of tiles
+            .tiles = newproduct_tiles,
+            .tiles_updated = 1,
+            .pos = game.Vec3{5, 5, 0},
+            .size = game.Vec3{10, 10, 1},
+        };
+        try world.products.append(newproduct);
+    }
+
     var renderer = try render.Renderer.init(&platform, &world);
 
     var fullscreen = false;

@@ -198,32 +198,46 @@ pub const Renderer = struct {
         try renderer.renderWorld();
     }
 
-    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat)) !void {
+    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat), product: game.Product) !void {
         _ = renderer;
-        const byte_data = [_]u8{    
-            // width, height, depth, 0
-            10, 10, 1, 0,
-        } ++ ([_]u8{
-            1, 0, 0, 0, // id 1
-            2, 0, 0, 0, // id 2
-            3, 0, 0, 0, // id 3
-            4, 0, 0, 0, // id 4
-            // we don't need to store this, just recreate it when it changes
-        } ** 50);
+        _ = product;
+        var res_byte_data = std.ArrayList(u8).init(allocator());
+        defer res_byte_data.deinit();
+
+        const result_ptr_idx = 6;
+
+        try res_byte_data.appendSlice(&[_]u8{
+            // width, height, depth, unused
+            @intCast(u8, product.size[game.x]),
+            @intCast(u8, product.size[game.y]),
+            @intCast(u8, product.size[game.z]),
+            0,
+        });
+
+        for(product.tiles) |tile| {
+            try res_byte_data.appendSlice(&[_]u8{
+                // tile_id, unused, unused, unused
+                @enumToInt(tile),
+                0,
+                0,
+                0,
+            });
+        }
         try final_rectangles.appendSlice(&[_]c.GLfloat{
             // xyz|tile_xyz|
-            -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            0.5, -0.5, 0,     10, 0, 0,  @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            0.5, 0.5, 0,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            0.5, 0.5, 0,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            -0.5, 0.5, 0,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
-
-            -0.3, -0.2, -0.5,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            0.6, 0.5, -0.5,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
-            -0.5, 0.4, -0.5,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            -0.5, -0.5, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
+            0.5, -0.5, 0,     @intToFloat(f32, product.size[game.x]), 0, 0,  @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
+            0.5, 0.5, 0,      @intToFloat(f32, product.size[game.x]), @intToFloat(f32, product.size[game.y]), 0, @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
+            -0.5, -0.5, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
+            0.5, 0.5, 0,      @intToFloat(f32, product.size[game.x]), @intToFloat(f32, product.size[game.y]), 0, @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
+            -0.5, 0.5, 0,     0, @intToFloat(f32, product.size[game.y]), 0,   @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
         });
-        try sdl.gewrap(c.glBufferSubData(c.GL_TEXTURE_BUFFER, 6 * 4, @sizeOf(@TypeOf(byte_data)), &byte_data));
+        try sdl.gewrap(c.glBufferSubData(
+            c.GL_TEXTURE_BUFFER,
+            result_ptr_idx * 4,
+            @intCast(c_long, @sizeOf(f32) * res_byte_data.items.len),
+            res_byte_data.items.ptr,
+        ));
     }
 
     pub fn updateBuffers(renderer: *Renderer) !void {
@@ -231,7 +245,9 @@ pub const Renderer = struct {
         defer final_rectangles.deinit();
 
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
-        try renderer.updateProduct(&final_rectangles);
+        for(renderer.world.products.items) |product| {
+            try renderer.updateProduct(&final_rectangles, product);
+        }
         try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
         try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
 
