@@ -75,16 +75,19 @@ const vertex_shader_source = (
     \\in uint i_tile_data_ptr;
     \\flat out int v_tile_data_ptr;
     \\out vec3 v_tile_position;
+    \\out float v_z;
     \\void main() {
     \\    gl_Position = vec4( i_position, 1.0 );
     \\    v_tile_data_ptr = int(i_tile_data_ptr);
     \\    v_tile_position = i_tile_position;
+    \\    v_z = -i_position.z * 100.0;
     \\}
 );
 const fragment_shader_source = (
     \\#version 330
     \\flat in int v_tile_data_ptr;
     \\in vec3 v_tile_position;
+    \\in float v_z;
     \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
     \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
@@ -102,12 +105,14 @@ const fragment_shader_source = (
     \\    // alternatively, we could only use the red channel and then it would just be byte_pos directly
     \\    // seems like it could be useful to have 4 bytes per thing though
     \\    o_color = vec4(0.0, 0.0, 0.0, 0.0);
+    \\    if(tile.x == 0u) discard;
     \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
     \\    if(tile.x == 2u) o_color = vec4(0.0, 1.0, 0.0, 1.0);
     \\    if(tile.x == 3u) o_color = vec4(0.0, 0.0, 1.0, 1.0);
     \\    if(tile.x == 4u) o_color = vec4(1.0, 1.0, 0.0, 1.0);
     \\    //o_color = vec4(float(tile.x) * 100, 0.0, 0.0, 1.0);
     \\    //o_color = vec4(float(header.x) * 100, 0.0, 0.0, 255.0) / vec4(255.0);
+    \\    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.8, 0.8, 0.8, 1.0);
     \\}
 );
 
@@ -135,6 +140,12 @@ pub const Renderer = struct {
     u_tbo_tex: c.GLint,
     tiles_data_buffer: c.GLuint,
     tiles_texture: c.GLuint,
+
+    // TODO: preserve the buffer across frames and only update what is needed.
+    // we have to use an allocator or something though.
+    // anyway, perf is fine right now so who cares. probably only needed if we're going to
+    // try to display an entire world at max zoom out
+    temp_this_frame_bufidx: usize = undefined,
 
     product_render_data: std.ArrayList(ProductRenderData),
 
@@ -198,13 +209,23 @@ pub const Renderer = struct {
         try renderer.renderWorld();
     }
 
+    pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3) game.Vec2f {
+        _ = renderer;
+        const ws_x = @intToFloat(f32, world_space[game.x]);
+        const ws_y = @intToFloat(f32, world_space[game.y]);
+        return game.Vec2f{
+            (ws_x - 5) / 10,
+            (ws_y - 5) / 10,
+        };
+    }
+
     pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat), product: game.Product) !void {
         _ = renderer;
         _ = product;
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 
-        const result_ptr_idx = 6;
+        const result_ptr_idx: usize = renderer.temp_this_frame_bufidx;
 
         try res_byte_data.appendSlice(&[_]u8{
             // width, height, depth, unused
@@ -223,21 +244,38 @@ pub const Renderer = struct {
                 0,
             });
         }
-        try final_rectangles.appendSlice(&[_]c.GLfloat{
-            // xyz|tile_xyz|
-            -0.5, -0.5, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-            0.5, -0.5, 0,     @intToFloat(f32, product.size[game.x]), 0, 0,  @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-            0.5, 0.5, 0,      @intToFloat(f32, product.size[game.x]), @intToFloat(f32, product.size[game.y]), 0, @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-            -0.5, -0.5, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-            0.5, 0.5, 0,      @intToFloat(f32, product.size[game.x]), @intToFloat(f32, product.size[game.y]), 0, @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-            -0.5, 0.5, 0,     0, @intToFloat(f32, product.size[game.y]), 0,   @bitCast(c.GLfloat, @as(c.GLint, result_ptr_idx)),
-        });
+        var z_layer: i32 = 0;
+        while(z_layer < product.size[game.z]) : (z_layer += 1) {
+            const tile_screen_0 = renderer.worldToScreen(product.pos);
+            const tile_screen_1 = renderer.worldToScreen(product.pos + product.size);
+            const tile_x0: f32 = tile_screen_0[game.x];
+            const tile_x1: f32 = tile_screen_1[game.x];
+            const tile_y0: f32 = tile_screen_0[game.y];
+            const tile_y1: f32 = tile_screen_1[game.y];
+            const tile_z: f32 = -@intToFloat(f32, product.pos[game.z] + z_layer) / 100.0;
+            const tile_data_x0: f32 = 0;
+            const tile_data_x1: f32 = @intToFloat(f32, product.size[game.x]);
+            const tile_data_y0: f32 = 0;
+            const tile_data_y1: f32 = @intToFloat(f32, product.size[game.y]);
+            const tile_data_z0: f32 = @intToFloat(f32, z_layer);
+            const tile_data_ptr: f32 = @bitCast(c.GLfloat, @intCast(c.GLint, result_ptr_idx));
+            try final_rectangles.appendSlice(&[_]c.GLfloat{
+                // xyz|tile_xyz|
+                tile_x0, tile_y0, tile_z, tile_data_x0, tile_data_y0, tile_data_z0, tile_data_ptr,
+                tile_x1, tile_y0, tile_z, tile_data_x1, tile_data_y0, tile_data_z0, tile_data_ptr,
+                tile_x1, tile_y1, tile_z, tile_data_x1, tile_data_y1, tile_data_z0, tile_data_ptr,
+                tile_x0, tile_y0, tile_z, tile_data_x0, tile_data_y0, tile_data_z0, tile_data_ptr,
+                tile_x1, tile_y1, tile_z, tile_data_x1, tile_data_y1, tile_data_z0, tile_data_ptr,
+                tile_x0, tile_y1, tile_z, tile_data_x0, tile_data_y1, tile_data_z0, tile_data_ptr,
+            });
+        }
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
-            result_ptr_idx * 4,
+            @intCast(c_long, result_ptr_idx * 4),
             @intCast(c_long, @sizeOf(f32) * res_byte_data.items.len),
             res_byte_data.items.ptr,
         ));
+        renderer.temp_this_frame_bufidx += res_byte_data.items.len / 4;
     }
 
     pub fn updateBuffers(renderer: *Renderer) !void {
@@ -245,6 +283,7 @@ pub const Renderer = struct {
         defer final_rectangles.deinit();
 
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
+        renderer.temp_this_frame_bufidx = 1;
         for(renderer.world.products.items) |product| {
             try renderer.updateProduct(&final_rectangles, product);
         }

@@ -52,6 +52,24 @@ pub fn main2() !void {
         };
         try world.products.append(newproduct);
     }
+    {
+        const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
+            .air, .air, .air, .air, .air,
+            .air, .air, .block, .block, .air,
+            .air, .air, .block, .block, .air,
+            .air, .air, .block, .air, .air,
+            .air, .air, .air, .air, .air,
+        });
+        const newproduct = game.Product{
+            .id = @intToEnum(game.ProductID, 1),
+            // MxN array of tiles
+            .tiles = newproduct_tiles,
+            .tiles_updated = 1,
+            .pos = game.Vec3{6, 7, 1},
+            .size = game.Vec3{5, 5, 1},
+        };
+        try world.products.append(newproduct);
+    }
 
     var renderer = try render.Renderer.init(&platform, &world);
 
