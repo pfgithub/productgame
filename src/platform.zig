@@ -5,6 +5,7 @@ const allocator = @import("main").allocator;
 const sdl = @import("sdl.zig");
 const game = @import("game.zig");
 const c = sdl.c;
+const log = std.log.scoped(.platform);
 
 pub const Platform = struct {
     window: *c.SDL_Window,

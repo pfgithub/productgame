@@ -6,6 +6,8 @@ const sdl = @import("sdl.zig");
 const plat = @import("platform.zig");
 const game = @import("game.zig");
 const c = sdl.c;
+const log = std.log.scoped(.render);
+
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
@@ -70,7 +72,6 @@ const Attrib = enum(c_uint) {
 // uint index (same for all six coordinates. says where in the sampler buffer the texture starts)
 const vertex_shader_source = (
     \\#version 330
-    \\#extension GL_OES_texture_buffer : require
     \\in vec3 i_position;
     \\in vec3 i_tile_position;
     \\in uint i_tile_data_ptr;
@@ -86,7 +87,6 @@ const vertex_shader_source = (
 );
 const fragment_shader_source = (
     \\#version 330
-    \\#extension GL_OES_texture_buffer : require
     \\flat in int v_tile_data_ptr;
     \\in vec3 v_tile_position;
     \\in float v_z;
@@ -152,6 +152,9 @@ pub const Renderer = struct {
     product_render_data: std.ArrayList(ProductRenderData),
 
     pub fn init(platform: *plat.Platform, world: *const game.World) !Renderer {
+        const gl_ver = try sdl.gewrap(c.glGetString(c.GL_VERSION));
+        log.info("gl ver: {s}", .{std.mem.span(gl_ver)});
+
         var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, vertex_shader_source);
         var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, fragment_shader_source);
 
@@ -179,7 +182,7 @@ pub const Renderer = struct {
         var tiles_data_buffer: c.GLuint = undefined;
         try sdl.gewrap(c.glGenBuffers(1, &tiles_data_buffer));
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, tiles_data_buffer));
-        try sdl.gewrap(c.glBufferData(c.GL_TEXTURE_BUFFER, @sizeOf(u8) * 4 * max_tiles, null, c.GL_DYNAMIC_DRAW));
+        try sdl.gewrap(c.glBufferData(c.GL_TEXTURE_BUFFER, @sizeOf(u8) * 4 * max_tiles, null, c.GL_DYNAMIC_DRAW)); // &[_]u8{0} ** (@sizeOf(u8) * 4 * max_tiles)
 
         var tiles_texture: c.GLuint = undefined;
         try sdl.gewrap(c.glGenTextures(1, &tiles_texture));

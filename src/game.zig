@@ -1,5 +1,6 @@
 const std = @import("std");
 const allocator = @import("main.zig").allocator;
+const log = std.log.scoped(.game);
 
 pub const x = 0;
 pub const y = 1;

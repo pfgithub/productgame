@@ -8,10 +8,11 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_opengl.h");
 });
+const log = log.scoped(.sdl);
 
 pub fn sewrap(return_value: c_int) !void {
     if(return_value != 0) {
-        std.log.err("SDL Error: {s}", .{std.mem.span(c.SDL_GetError())});
+        log.err("SDL Error: {s}", .{std.mem.span(c.SDL_GetError())});
         return error.SDL_Error;
     }
 }
@@ -36,7 +37,7 @@ pub fn createCompileShader(kind: c_uint, source: []const u8) !c_uint {
         var str_len: c.GLint = undefined;
 	    c.glGetShaderInfoLog(shader, @intCast(c.GLint, err_log.len), &str_len, err_log.ptr);
 
-        std.log.err("GL Error: Shader compilation failed", .{});
+        log.err("GL Error: Shader compilation failed", .{});
 
         std.debug.print("--- msg ---\n{s}", .{err_log[0..@intCast(usize, str_len)]});
 
@@ -62,7 +63,7 @@ pub fn glErrStr(err: c_uint) []const u8 {
 pub fn glCheckError() !void {
     const err = c.glGetError();
     if(err == c.GL_NO_ERROR) return;
-    std.log.err("Got gl error: {d}/{s}", .{err, glErrStr(err)});
+    log.err("Got gl error: {d}/{s}", .{err, glErrStr(err)});
     return error.GL_Error;
 }
 

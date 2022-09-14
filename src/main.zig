@@ -4,6 +4,7 @@ const game = @import("game.zig");
 const render = @import("render.zig");
 const plat = @import("platform.zig");
 const c = sdl.c;
+const log = std.log.scoped(.main);
 
 // https://www.khronos.org/opengl/wiki/Buffer_Texture
 
