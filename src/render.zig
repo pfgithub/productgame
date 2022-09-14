@@ -19,8 +19,8 @@ pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
 // strgen:
 fn attribTypeStr(comptime a: type) []const u8 {
-    if(a == [3]f32) return "vec3";
-    if(a == c_uint) return "uint";
+    if(a == [3]c.GLfloat) return "vec3";
+    if(a == c.GLuint) return "uint";
     @compileError("TODO support type");
 }
 fn attribFields(comptime a: type) []const AttribTypeInfo {
@@ -32,7 +32,7 @@ fn attribFields(comptime a: type) []const AttribTypeInfo {
     }
     return infos;
 }
-fn attribCodegen(comptime a: type) []const u8 {
+fn shaderInputCodegen(comptime a: type) []const u8 {
     var res: []const u8 = "";
     for(attribFields(a)) |attribute, i| {
         if(i != 0) res = res ++ " ";
@@ -56,7 +56,7 @@ fn attribTypeInfo(i: usize, name: []const u8, comptime a: type, stride: usize, o
     const c_id = @intCast(c.GLuint, i);
     const c_stride = @intCast(c.GLsizei, stride);
     const c_offset = @intToPtr(?*anyopaque, offset);
-    if(a == [3]f32) return AttribTypeInfo{
+    if(a == [3]c.GLfloat) return AttribTypeInfo{
         .count = 3,
         .cenum = c.GL_FLOAT,
         .mode = .float,
@@ -80,23 +80,20 @@ fn attribTypeInfo(i: usize, name: []const u8, comptime a: type, stride: usize, o
     };
     @compileError("todo support type");
 }
-
-const Attrib = enum(c_uint) {
-    pub fn bind(shader_prog: c_uint) !void {
-        for(comptime attribFields(VertexInput)) |attrib| {
-            try sdl.gewrap(c.glBindAttribLocation(shader_prog, attrib.id, attrib.name.ptr));
+fn shaderBindAttributes(comptime shader: type, shader_prog: c_uint) !void {
+    for(comptime attribFields(shader.Vertex)) |attrib| {
+        try sdl.gewrap(c.glBindAttribLocation(shader_prog, attrib.id, attrib.name.ptr));
+    }
+}
+fn shaderActivateAttributes(comptime shader: type) !void {
+    for(comptime attribFields(shader.Vertex)) |attrib| {
+        c.glEnableVertexAttribArray(attrib.id);
+        switch(attrib.mode) {
+            .int => try sdl.gewrap(c.glVertexAttribIPointer(attrib.id, attrib.count, attrib.cenum, attrib.stride, attrib.offset)),
+            .float => try sdl.gewrap(c.glVertexAttribPointer(attrib.id, attrib.count, attrib.cenum, c.GL_FALSE, attrib.stride, attrib.offset)),
         }
     }
-    pub fn activate() !void {
-        for(comptime attribFields(VertexInput)) |attrib| {
-            c.glEnableVertexAttribArray(attrib.id);
-            switch(attrib.mode) {
-                .int => try sdl.gewrap(c.glVertexAttribIPointer(attrib.id, attrib.count, attrib.cenum, attrib.stride, attrib.offset)),
-                .float => try sdl.gewrap(c.glVertexAttribPointer(attrib.id, attrib.count, attrib.cenum, c.GL_FALSE, attrib.stride, attrib.offset)),
-            }
-        }
-    }
-};
+}
 
 // why when I look up "opengl tilemap" is everyone talking about using two triangles per tile
 // like why not put it all in the shader? why have to have so many vertices and deal with chunking and all that
@@ -106,60 +103,62 @@ const Attrib = enum(c_uint) {
 //    i don't know how clip space works so probably I can just use an ortho projection matrix and not deal with it
 // vec3 tile_position (0..w, 0..h)
 // uint index (same for all six coordinates. says where in the sampler buffer the texture starts)
-const VertexInput = struct {
-    i_position: [3]f32,
-    i_tile_position: [3]f32,
-    i_tile_data_ptr: c_uint,
+const TileShader = struct {
+    const Vertex = struct {
+        i_position: [3]c.GLfloat,
+        i_tile_position: [3]c.GLfloat,
+        i_tile_data_ptr: c.GLuint,
+    };
+    const vertex_source = (
+        \\#version 330
+        ++ "\n" ++ shaderInputCodegen(Vertex) ++ "\n" ++
+        \\flat out int v_tile_data_ptr;
+        \\out vec3 v_tile_position;
+        \\out vec3 v_qposition;
+        \\out float v_z;
+        \\void main() {
+        \\    gl_Position = vec4( i_position, 1.0 );
+        \\    v_tile_data_ptr = int(i_tile_data_ptr);
+        \\    v_tile_position = i_tile_position;
+        \\    v_z = -i_position.z * 100.0;
+        \\    v_qposition = i_position;
+        \\}
+    );
+    const fragment_source = (
+        \\#version 330
+        \\flat in int v_tile_data_ptr;
+        \\in vec3 v_tile_position;
+        \\in vec3 v_qposition;
+        \\in float v_z;
+        \\uniform usamplerBuffer u_tbo_tex;
+        \\out vec4 o_color;
+        \\uvec4 getMem(int ptr) {
+        \\    return texelFetch(u_tbo_tex, ptr);
+        \\}
+        \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
+        \\    //if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
+        \\    //    return uvec4(0, 0, 0, 0); // out of bounds; return air tile
+        \\    //}
+        \\    return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
+        \\}
+        \\void main() {
+        \\    uvec4 header = getMem(v_tile_data_ptr);
+        \\    ivec3 size = ivec3(header.xyz);
+        \\    ivec3 pos = ivec3(floor(v_tile_position));
+        \\    uvec4 tile = getTile(v_tile_data_ptr, pos, size);
+        \\
+        \\    o_color = vec4(0.0, 0.0, 0.0, 0.0);
+        \\    if(tile.x == 0u) discard;
+        \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
+        \\    if(tile.x == 2u) o_color = vec4(0.0, 1.0, 0.0, 1.0);
+        \\    if(tile.x == 3u) o_color = vec4(0.0, 0.0, 1.0, 1.0);
+        \\    if(tile.x == 4u) o_color = vec4(1.0, 1.0, 0.0, 1.0);
+        \\    //o_color = vec4(float(tile.x) * 100, 0.0, 0.0, 1.0);
+        \\    //o_color = vec4(float(header.x) * 100, 0.0, 0.0, 255.0) / vec4(255.0);
+        \\    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.8, 0.8, 0.8, 1.0);
+        \\}
+    );
 };
-const vertex_shader_source = (
-    \\#version 330
-    ++ "\n" ++ attribCodegen(VertexInput) ++
-    \\flat out int v_tile_data_ptr;
-    \\out vec3 v_tile_position;
-    \\out vec3 v_qposition;
-    \\out float v_z;
-    \\void main() {
-    \\    gl_Position = vec4( i_position, 1.0 );
-    \\    v_tile_data_ptr = int(i_tile_data_ptr);
-    \\    v_tile_position = i_tile_position;
-    \\    v_z = -i_position.z * 100.0;
-    \\    v_qposition = i_position;
-    \\}
-);
-const fragment_shader_source = (
-    \\#version 330
-    \\flat in int v_tile_data_ptr;
-    \\in vec3 v_tile_position;
-    \\in vec3 v_qposition;
-    \\in float v_z;
-    \\uniform usamplerBuffer u_tbo_tex;
-    \\out vec4 o_color;
-    \\uvec4 getMem(int ptr) {
-    \\    return texelFetch(u_tbo_tex, ptr);
-    \\}
-    \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
-    \\    //if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
-    \\    //    return uvec4(0, 0, 0, 0); // out of bounds; return air tile
-    \\    //}
-    \\    return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
-    \\}
-    \\void main() {
-    \\    uvec4 header = getMem(v_tile_data_ptr);
-    \\    ivec3 size = ivec3(header.xyz);
-    \\    ivec3 pos = ivec3(floor(v_tile_position));
-    \\    uvec4 tile = getTile(v_tile_data_ptr, pos, size);
-    \\
-    \\    o_color = vec4(0.0, 0.0, 0.0, 0.0);
-    \\    if(tile.x == 0u) discard;
-    \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
-    \\    if(tile.x == 2u) o_color = vec4(0.0, 1.0, 0.0, 1.0);
-    \\    if(tile.x == 3u) o_color = vec4(0.0, 0.0, 1.0, 1.0);
-    \\    if(tile.x == 4u) o_color = vec4(1.0, 1.0, 0.0, 1.0);
-    \\    //o_color = vec4(float(tile.x) * 100, 0.0, 0.0, 1.0);
-    \\    //o_color = vec4(float(header.x) * 100, 0.0, 0.0, 255.0) / vec4(255.0);
-    \\    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.8, 0.8, 0.8, 1.0);
-    \\}
-);
 
 // when rendering:
 // - if a product has been updated, use glBufferSubData to update that part of the buffer
@@ -198,15 +197,14 @@ pub const Renderer = struct {
         const gl_ver = try sdl.gewrap(c.glGetString(c.GL_VERSION));
         log.info("gl ver: {s}", .{std.mem.span(gl_ver)});
 
-        var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, vertex_shader_source);
-        var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, fragment_shader_source);
+        var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, TileShader.vertex_source);
+        var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, TileShader.fragment_source);
 
         var shader_program: c_uint = c.glCreateProgram();
         try sdl.gewrap(c.glAttachShader(shader_program, vertex_shader));
         try sdl.gewrap(c.glAttachShader(shader_program, fragment_shader));
-        try Attrib.bind(shader_program);
+        try shaderBindAttributes(TileShader, shader_program);
         try sdl.gewrap(c.glLinkProgram(shader_program));
-
         try sdl.gewrap(c.glUseProgram(shader_program));
 
         var vertex_array: c.GLuint = undefined;
@@ -217,7 +215,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBindVertexArray(vertex_array));
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, vertex_buffer));
 
-        try Attrib.activate();
+        try shaderActivateAttributes(TileShader);
 
         const u_tbo_tex = c.glGetUniformLocation(shader_program, "u_tbo_tex");
 
@@ -266,7 +264,7 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat), product: game.Product) !void {
+    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product) !void {
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 
@@ -303,15 +301,14 @@ pub const Renderer = struct {
             const tile_data_y0: f32 = 0;
             const tile_data_y1: f32 = @intToFloat(f32, product.size[game.y]);
             const tile_data_z0: f32 = @intToFloat(f32, z_layer);
-            const tile_data_ptr: f32 = @bitCast(c.GLfloat, @intCast(c.GLint, result_ptr_idx));
-            try final_rectangles.appendSlice(&[_]c.GLfloat{
-                // xyz|tile_xyz|
-                tile_x0, tile_y0, tile_z, tile_data_x0, tile_data_y0, tile_data_z0, tile_data_ptr,
-                tile_x1, tile_y0, tile_z, tile_data_x1, tile_data_y0, tile_data_z0, tile_data_ptr,
-                tile_x1, tile_y1, tile_z, tile_data_x1, tile_data_y1, tile_data_z0, tile_data_ptr,
-                tile_x0, tile_y0, tile_z, tile_data_x0, tile_data_y0, tile_data_z0, tile_data_ptr,
-                tile_x1, tile_y1, tile_z, tile_data_x1, tile_data_y1, tile_data_z0, tile_data_ptr,
-                tile_x0, tile_y1, tile_z, tile_data_x0, tile_data_y1, tile_data_z0, tile_data_ptr,
+            const tile_data_ptr: c.GLuint = @intCast(c.GLuint, result_ptr_idx);
+            try final_rectangles.appendSlice(&[_]TileShader.Vertex{
+                .{.i_position = [_]f32{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]f32{tile_x1, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]f32{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]f32{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]f32{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]f32{tile_x0, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
             });
         }
         try sdl.gewrap(c.glBufferSubData(
@@ -324,7 +321,7 @@ pub const Renderer = struct {
     }
 
     pub fn updateBuffers(renderer: *Renderer) !void {
-        var final_rectangles = std.ArrayList(c.GLfloat).init(allocator());
+        var final_rectangles = std.ArrayList(TileShader.Vertex).init(allocator());
         defer final_rectangles.deinit();
 
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
@@ -337,9 +334,8 @@ pub const Renderer = struct {
 
         // 2. update rectangles
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
-        const vertex_buffer_data = final_rectangles.items;
-        try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(c_long, @sizeOf(c.GLfloat) * vertex_buffer_data.len), @ptrCast(?*const anyopaque, vertex_buffer_data), c.GL_STATIC_DRAW));
-        renderer.vertices = @intCast(c.GLint, vertex_buffer_data.len / 7);
+        try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(c_long, @sizeOf(TileShader.Vertex) * final_rectangles.items.len), @ptrCast(?*const anyopaque, final_rectangles.items), c.GL_STATIC_DRAW));
+        renderer.vertices = @intCast(c.GLint, final_rectangles.items.len);
     }
 
     pub fn renderWorld(renderer: *Renderer) !void {
