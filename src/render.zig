@@ -220,8 +220,6 @@ pub const Renderer = struct {
     }
 
     pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(c.GLfloat), product: game.Product) !void {
-        _ = renderer;
-        _ = product;
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 

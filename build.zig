@@ -16,8 +16,16 @@ pub fn build(b: *std.build.Builder) void {
     exe.setBuildMode(mode);
 
     exe.linkLibC();
-    exe.linkSystemLibrary("SDL2");
-    exe.linkSystemLibrary("GL");
+    if(target.isDarwin()) {
+        exe.linkFramework("Cocoa");
+        exe.linkFramework("OpenGL");
+        exe.linkSystemLibrary("SDL2");
+    }else if(target.isLinux()) {
+        exe.linkSystemLibrary("SDL2");
+        exe.linkSystemLibrary("GL");
+    }else{
+        @panic("unsupported target");
+    }
     exe.install();
 
     const run_cmd = exe.run();
