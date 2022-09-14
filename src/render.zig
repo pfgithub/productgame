@@ -70,6 +70,7 @@ const Attrib = enum(c_uint) {
 // uint index (same for all six coordinates. says where in the sampler buffer the texture starts)
 const vertex_shader_source = (
     \\#version 330
+    \\#extension GL_OES_texture_buffer : require
     \\in vec3 i_position;
     \\in vec3 i_tile_position;
     \\in uint i_tile_data_ptr;
@@ -85,6 +86,7 @@ const vertex_shader_source = (
 );
 const fragment_shader_source = (
     \\#version 330
+    \\#extension GL_OES_texture_buffer : require
     \\flat in int v_tile_data_ptr;
     \\in vec3 v_tile_position;
     \\in float v_z;
