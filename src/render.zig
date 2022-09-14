@@ -73,26 +73,41 @@ const vertex_shader_source = (
     \\in vec3 i_position;
     \\in vec3 i_tile_position;
     \\in uint i_tile_data_ptr;
-    \\flat out uint v_tile_data_ptr;
+    \\flat out int v_tile_data_ptr;
     \\out vec4 v_color;
+    \\out vec3 v_tile_position;
     \\void main() {
     \\    gl_Position = vec4( i_position, 1.0 );
     \\    v_color = vec4(i_tile_position / 10.0, 1.0);
-    \\    v_tile_data_ptr = i_tile_data_ptr;
+    \\    v_tile_data_ptr = int(i_tile_data_ptr);
+    \\    v_tile_position = i_tile_position;
     \\}
 );
 const fragment_shader_source = (
     \\#version 330
-    \\flat in uint v_tile_data_ptr;
+    \\flat in int v_tile_data_ptr;
     \\in vec4 v_color;
+    \\in vec3 v_tile_position;
     \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
+    \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
+    \\    return texelFetch(u_tbo_tex, ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
+    \\}
     \\void main() {
     \\    o_color = v_color;
+    \\    uvec4 header = texelFetch(u_tbo_tex, v_tile_data_ptr);
+    \\    ivec3 size = ivec3(header.xyz);
+    \\    ivec3 pos = ivec3(floor(v_tile_position));
+    \\    uvec4 tile = getTile(v_tile_data_ptr, pos, size);
     \\    // texelFetch(u_tbo_tex, byte_pos / 4 (rgba))
     \\    // alternatively, we could only use the red channel and then it would just be byte_pos directly
     \\    // seems like it could be useful to have 4 bytes per thing though
-    \\    //o_color = vec4(texelFetch(u_tbo_tex, 0)) / vec4(255);
+    \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
+    \\    if(tile.x == 2u) o_color = vec4(0.0, 1.0, 0.0, 1.0);
+    \\    if(tile.x == 3u) o_color = vec4(0.0, 0.0, 1.0, 1.0);
+    \\    if(tile.x == 4u) o_color = vec4(1.0, 1.0, 0.0, 1.0);
+    \\    //o_color = vec4(float(tile.x) * 100, 0.0, 0.0, 1.0);
+    \\    //o_color = vec4(float(header.x) * 100, 0.0, 0.0, 255.0) / vec4(255.0);
     \\}
 );
 
@@ -168,13 +183,27 @@ pub const Renderer = struct {
 
     pub fn renderWorld(renderer: *Renderer) !void {
         try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
+
+        try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
+        const byte_data = [_]u8{
+            // width, height, depth, 0
+            10, 10, 1, 0,
+        } ++ ([_]u8{
+            1, 0, 0, 0, // id 1
+            2, 0, 0, 0, // id 2
+            3, 0, 0, 0, // id 3
+            4, 0, 0, 0, // id 4
+            // we don't need to store this, just recreate it when it changes
+        } ** 50);
+        try sdl.gewrap(c.glBufferSubData(c.GL_TEXTURE_BUFFER, 6 * 4, @sizeOf(@TypeOf(byte_data)), &byte_data));
+
         try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
         try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
         try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));
 
+    
         try sdl.gewrap(c.glBindVertexArray(renderer.vertex_array));
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
-
 
 
         const vertex_buffer_data = [_]c.GLfloat{
@@ -185,9 +214,13 @@ pub const Renderer = struct {
             -0.5, -0.2, 0,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
             0.5, 0.5, 0,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
             -0.5, 0.5, 0,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
+
+            -0.3, -0.2, -0.5,    0, 0, 0,    @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            0.6, 0.5, -0.5,      10, 10, 0, @bitCast(c.GLfloat, @as(c.GLint, 6)),
+            -0.5, 0.4, -0.5,     0, 10, 0,   @bitCast(c.GLfloat, @as(c.GLint, 6)),
         };
         try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_buffer_data)), @ptrCast(?*const anyopaque, &vertex_buffer_data), c.GL_STATIC_DRAW));
 
-        try sdl.gewrap(c.glDrawArrays(c.GL_TRIANGLES, 0, 6));
+        try sdl.gewrap(c.glDrawArrays(c.GL_TRIANGLES, 0, vertex_buffer_data.len / 7));
     }
 };
