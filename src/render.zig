@@ -14,34 +14,46 @@ pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
 const Attrib = enum(c_uint) {
     position,
-    color,
+    tile_position,
     tile_dat_ptr,
-    pub const all_attributes = &[_]Attrib{.position, .color, .tile_dat_ptr};
+    pub const all_attributes = &[_]Attrib{.position, .tile_position, .tile_dat_ptr};
     pub fn id(attrib: Attrib) c_uint {
         return @enumToInt(attrib);
+    }
+    pub fn name(attrib: Attrib) [*:0]const u8 {
+        return switch(attrib) {
+            .position => "i_position",
+            .tile_position => "i_tile_position",
+            .tile_dat_ptr => "i_tile_data_ptr",
+        };
     }
     pub fn ctype(attrib: Attrib) c.GLenum {
         return switch(attrib) {
             .position => c.GL_FLOAT,
-            .color => c.GL_FLOAT,
+            .tile_position => c.GL_FLOAT,
             .tile_dat_ptr => c.GL_UNSIGNED_INT,
         };
     }
     pub fn count(attrib: Attrib) usize {
         return switch(attrib) {
             .position => 3,
-            .color => 3,
+            .tile_position => 3,
             .tile_dat_ptr => 1,
         };
     }
     pub fn size(attrib: Attrib) usize {
         return switch(attrib) {
             .position => @sizeOf(c.GLfloat) * 3,
-            .color => @sizeOf(c.GLfloat) * 3,
+            .tile_position => @sizeOf(c.GLfloat) * 3,
             .tile_dat_ptr => @sizeOf(c.GLuint) * 1,
         };
     }
-    pub fn activate() void {
+    pub fn bind(shader_prog: c_uint) !void {
+        for(all_attributes) |attrib| {
+            try sdl.gewrap(c.glBindAttribLocation(shader_prog, attrib.id(), attrib.name()));
+        }
+    }
+    pub fn activate() !void {
         var total: usize = 0;
         for(all_attributes) |attrib| {
             total += attrib.size();
@@ -53,9 +65,9 @@ const Attrib = enum(c_uint) {
             const c_total = @intCast(c.GLint, total);
             const c_stride = @intToPtr(?*const anyopaque, stride);
             if(attrib.ctype() == c.GL_UNSIGNED_INT) {
-                c.glVertexAttribIPointer(attrib.id(), c_count, attrib.ctype(), c_total, c_stride);
+                try sdl.gewrap(c.glVertexAttribIPointer(attrib.id(), c_count, attrib.ctype(), c_total, c_stride));
             }else{
-                c.glVertexAttribPointer(attrib.id(), c_count, attrib.ctype(), c.GL_FALSE, c_total, c_stride);
+                try sdl.gewrap(c.glVertexAttribPointer(attrib.id(), c_count, attrib.ctype(), c.GL_FALSE, c_total, c_stride));
             }
             stride += attrib.size();
         }
@@ -77,18 +89,21 @@ const vertex_shader_source = (
     \\in uint i_tile_data_ptr;
     \\flat out int v_tile_data_ptr;
     \\out vec3 v_tile_position;
+    \\out vec3 v_qposition;
     \\out float v_z;
     \\void main() {
     \\    gl_Position = vec4( i_position, 1.0 );
     \\    v_tile_data_ptr = int(i_tile_data_ptr);
     \\    v_tile_position = i_tile_position;
     \\    v_z = -i_position.z * 100.0;
+    \\    v_qposition = i_position;
     \\}
 );
 const fragment_shader_source = (
     \\#version 330
     \\flat in int v_tile_data_ptr;
     \\in vec3 v_tile_position;
+    \\in vec3 v_qposition;
     \\in float v_z;
     \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
@@ -96,9 +111,9 @@ const fragment_shader_source = (
     \\    return texelFetch(u_tbo_tex, ptr);
     \\}
     \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
-    \\    if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
-    \\        return uvec4(0, 0, 0, 0); // out of bounds; return air tile
-    \\    }
+    \\    //if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
+    \\    //    return uvec4(0, 0, 0, 0); // out of bounds; return air tile
+    \\    //}
     \\    return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
     \\}
     \\void main() {
@@ -106,6 +121,7 @@ const fragment_shader_source = (
     \\    ivec3 size = ivec3(header.xyz);
     \\    ivec3 pos = ivec3(floor(v_tile_position));
     \\    uvec4 tile = getTile(v_tile_data_ptr, pos, size);
+    \\
     \\    o_color = vec4(0.0, 0.0, 0.0, 0.0);
     \\    if(tile.x == 0u) discard;
     \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
@@ -161,8 +177,7 @@ pub const Renderer = struct {
         var shader_program: c_uint = c.glCreateProgram();
         try sdl.gewrap(c.glAttachShader(shader_program, vertex_shader));
         try sdl.gewrap(c.glAttachShader(shader_program, fragment_shader));
-        try sdl.gewrap(c.glBindAttribLocation(shader_program, Attrib.position.id(), "i_position"));
-        try sdl.gewrap(c.glBindAttribLocation(shader_program, Attrib.color.id(), "color"));
+        try Attrib.bind(shader_program);
         try sdl.gewrap(c.glLinkProgram(shader_program));
 
         try sdl.gewrap(c.glUseProgram(shader_program));
@@ -175,7 +190,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBindVertexArray(vertex_array));
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, vertex_buffer));
 
-        Attrib.activate();
+        try Attrib.activate();
 
         const u_tbo_tex = c.glGetUniformLocation(shader_program, "u_tbo_tex");
 

@@ -8,7 +8,7 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_opengl.h");
 });
-const log = log.scoped(.sdl);
+const log = std.log.scoped(.sdl);
 
 pub fn sewrap(return_value: c_int) !void {
     if(return_value != 0) {
