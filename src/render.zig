@@ -92,20 +92,20 @@ const fragment_shader_source = (
     \\in float v_z;
     \\uniform usamplerBuffer u_tbo_tex;
     \\out vec4 o_color;
+    \\uvec4 getMem(int ptr) {
+    \\    return texelFetch(u_tbo_tex, ptr);
+    \\}
     \\uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
     \\    if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
     \\        return uvec4(0, 0, 0, 0); // out of bounds; return air tile
     \\    }
-    \\    return texelFetch(u_tbo_tex, ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
+    \\    return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
     \\}
     \\void main() {
-    \\    uvec4 header = texelFetch(u_tbo_tex, v_tile_data_ptr);
+    \\    uvec4 header = getMem(v_tile_data_ptr);
     \\    ivec3 size = ivec3(header.xyz);
     \\    ivec3 pos = ivec3(floor(v_tile_position));
     \\    uvec4 tile = getTile(v_tile_data_ptr, pos, size);
-    \\    // texelFetch(u_tbo_tex, byte_pos / 4 (rgba))
-    \\    // alternatively, we could only use the red channel and then it would just be byte_pos directly
-    \\    // seems like it could be useful to have 4 bytes per thing though
     \\    o_color = vec4(0.0, 0.0, 0.0, 0.0);
     \\    if(tile.x == 0u) discard;
     \\    if(tile.x == 1u) o_color = vec4(1.0, 0.0, 0.0, 1.0);
