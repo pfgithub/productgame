@@ -32,11 +32,20 @@ uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
     return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
 }
 
-vec4 drawTile(uvec4 surrounding[9]) {
+vec4 drawTile(uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
     if(tile.x == TILE_air) discard;
-    if(tile.x == TILE_block) return vec4(1.0f, 0.0, 0.0, 1.0);
+    if(tile.x == TILE_block) {
+        // ok what I actually want is:
+        // - imagine an inset rounded rectangle
+        // - blur it
+        // but it's not just a rounded rectangle
+        // - it connects to nearby tiles. so if the bottom tile is a block, it uses that
+        // https://raphlinus.github.io/graphics/2020/04/21/blurred-rounded-rects.html
+        float dist = 1 - (length(position)* 0.3) ;
+        return vec4(dist, dist, dist, 1.0);
+    }
     if(tile.x == TILE_conveyor) return vec4(0.0, 1.0, 0.0, 1.0);
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
     return vec4(0.0, 1.0, 1.0, 1.0);
@@ -57,7 +66,7 @@ void main() {
         getTile(v_tile_data_ptr, pos + ivec3(1, 0, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
     );
-    o_color = drawTile(surrounding);
+    o_color = drawTile(surrounding, (mod(v_tile_position.xy, 1.0)) * 2.0 - 1.0);
     if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.8, 0.8, 0.8, 1.0);
 }
 
