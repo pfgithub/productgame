@@ -33,7 +33,7 @@ fn attribFields(comptime a: type) []const AttribTypeInfo {
     return infos;
 }
 fn shaderInputCodegen(comptime a: type) []const u8 {
-    var res: []const u8 = "#line 0 \"-shader-input-generated-\"\n";
+    var res: []const u8 = "#line 0 5000\n";
     for(attribFields(a)) |attribute| {
         res = res ++ "in " ++ attribute.glsl_type_str ++ " " ++ attribute.name ++ ";\n";
     }
@@ -135,7 +135,7 @@ fn intStr(comptime int_: comptime_int) []const u8 {
     return res;
 }
 const tile_ids_code = blk: {
-    var res: []const u8 = "#line 0 \"-tile-ids-generated-\"\n";
+    var res: []const u8 = "#line 0 4000\n";
     for(std.meta.tags(game.TileID)) |tile_id| {
         res = res ++ "#define TILE_" ++ @tagName(tile_id) ++ " " ++ intStr(@enumToInt(tile_id)) ++ "u\n";
     }

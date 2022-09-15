@@ -1,4 +1,4 @@
-#line 2 "tile.frag"
+#line 2 6000
 #ifdef VERTEX_SHADER
 
 flat out int v_tile_data_ptr;
