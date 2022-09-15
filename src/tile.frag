@@ -43,7 +43,21 @@ vec4 drawTile(uvec4 surrounding[9], vec2 position) {
         // but it's not just a rounded rectangle
         // - it connects to nearby tiles. so if the bottom tile is a block, it uses that
         // https://raphlinus.github.io/graphics/2020/04/21/blurred-rounded-rects.html
-        float dist = 1 - (length(position)* 0.3) ;
+        float vlen = length(position);
+        vec4 edge_color = vec4(0.6, 0.6, 0.6, 1.0);
+        if(surrounding[1].x == TILE_air) {
+            if(position.y < -0.9) return edge_color;
+        }
+        if(surrounding[3].x == TILE_air) {
+            if(position.x < -0.9) return edge_color;
+        }
+        if(surrounding[5].x == TILE_air) {
+            if(position.x > 0.9) return edge_color;
+        }
+        if(surrounding[7].x == TILE_air) {
+            if(position.y > 0.9) return edge_color;
+        }
+        float dist = 1 - (vlen* 0.2) ;
         return vec4(dist, dist, dist, 1.0);
     }
     if(tile.x == TILE_conveyor) return vec4(0.0, 1.0, 0.0, 1.0);
@@ -57,17 +71,17 @@ void main() {
     ivec3 pos = ivec3(floor(v_tile_position));
     uvec4 surrounding[9] = uvec4[9](
         getTile(v_tile_data_ptr, pos + ivec3(-1, -1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(-1, 0, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(-1, 1, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(0, -1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(0, 0, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(0, 1, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, -1, 0), size),
+        getTile(v_tile_data_ptr, pos + ivec3(-1, 0, 0), size),
+        getTile(v_tile_data_ptr, pos + ivec3(0, 0, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, 0, 0), size),
+        getTile(v_tile_data_ptr, pos + ivec3(-1, 1, 0), size),
+        getTile(v_tile_data_ptr, pos + ivec3(0, 1, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
     );
     o_color = drawTile(surrounding, (mod(v_tile_position.xy, 1.0)) * 2.0 - 1.0);
-    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.8, 0.8, 0.8, 1.0);
+    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 
 #endif
