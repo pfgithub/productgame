@@ -32,6 +32,10 @@ uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
     return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
 }
 
+float map(float value, float min1, float max1, float min2, float max2) {
+  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
 vec4 drawTile(uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
@@ -43,26 +47,30 @@ vec4 drawTile(uvec4 surrounding[9], vec2 position) {
         // but it's not just a rounded rectangle
         // - it connects to nearby tiles. so if the bottom tile is a block, it uses that
         // https://raphlinus.github.io/graphics/2020/04/21/blurred-rounded-rects.html
-        float vlen = length(position);
-        vec4 edge_color = vec4(0.6, 0.6, 0.6, 1.0);
-        if(surrounding[1].x == TILE_air) {
-            // smoothstep(position.y, -0.9, -0.10)
-            // smoothstep (start, end) enables or disables an effect, providing
-            // a smooth transition within the specified range
-            // so you can multiply it
-            if(position.y < -0.9) return edge_color;
+
+        // https://youtu.be/BFld4EBO2RE?t=2062
+        // maybe I want these parabolas
+        // and then if the side has a tile, cut off that side of the parabola
+
+        float x = (position.x + 1) / 2;
+        float y = (position.y + 1) / 2;
+        float xpb = (4 * x * (1 - x));
+        float ypb = (4 * y * (1 - y));
+        if(surrounding[1].x != TILE_air) {
+            if(y < 0.5) ypb = (ypb / 3.0) + (2.0/3.0);
         }
-        if(surrounding[3].x == TILE_air) {
-            if(position.x < -0.9) return edge_color;
+        if(surrounding[3].x != TILE_air) {
+            if(x < 0.5) xpb = (xpb / 3.0) + (2.0/3.0);
         }
-        if(surrounding[5].x == TILE_air) {
-            if(position.x > 0.9) return edge_color;
+        if(surrounding[5].x != TILE_air) {
+            if(x > 0.5) xpb = (xpb / 3.0) + (2.0/3.0);
         }
-        if(surrounding[7].x == TILE_air) {
-            if(position.y > 0.9) return edge_color;
+        if(surrounding[7].x != TILE_air) {
+            if(y > 0.5) ypb = (ypb / 3.0) + (2.0/3.0);
         }
-        float dist = 1 - (vlen* 0.2) ;
-        return vec4(dist, dist, dist, 1.0);
+        vec3 color = vec3(1.0, 1.0, 1.0);
+        color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
+        return vec4(color, 1.0);
     }
     if(tile.x == TILE_conveyor) return vec4(0.0, 1.0, 0.0, 1.0);
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
