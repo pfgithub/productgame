@@ -275,11 +275,10 @@ pub const Renderer = struct {
 
         for(product.tiles) |tile| {
             try res_byte_data.appendSlice(&[_]u8{
-                // tile_id, unused, unused, unused
-                @enumToInt(tile),
-                0,
-                0,
-                0,
+                @enumToInt(tile.id),
+                tile.data_1,
+                tile.data_2,
+                tile.data_3,
             });
         }
         var z_layer: i32 = 0;

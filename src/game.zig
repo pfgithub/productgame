@@ -26,14 +26,20 @@ pub fn rectPointToIndex(point: Vec3, rect_pos: Vec3, rect_size: Vec3) ?usize {
     return @intCast(usize, res);
 }
 
-pub const Tile = enum(u8) {
+pub const TileID = enum(u8) {
     air,
     block,
-    conveyor_w,
-    conveyor_s,
-    conveyor_a,
-    conveyor_d,
+    conveyor,
     spawner,
+};
+pub const Tile = struct {
+    id: TileID,
+    data_1: u8 = 0,
+    data_2: u8 = 0,
+    data_3: u8 = 0,
+    // for more data, use a hashmap indexed with the object position or something
+
+    pub const Air = Tile{.id = .air};
 };
 
 pub const ProductID = enum(usize) {_};
@@ -51,7 +57,7 @@ pub const Product = struct {
     }
 
     pub fn getTile(product: Product, pos: Vec3) Tile {
-        return product.tiles(rectPointToIndex(pos, product.pos, product.size) orelse return Tile.air);
+        return product.tiles(rectPointToIndex(pos, product.pos, product.size) orelse return Tile.Air);
     }
 
     // note: whenever setting a tile, also update the buffer data with
@@ -78,16 +84,41 @@ pub const World = struct {
     // to find a specific tile in the world:
     // - 1. filter products by bounding box
     // - 2. check if the product has that tile
-    fn getTile(world: World, pos: Vec3) Tile {
-        for(world.products.items) |product| {
+    fn getTile(world: World, pos: Vec3) struct{product: ?*Product, tile: Tile} {
+        for(world.products.items) |*product| {
             const res = product.getTile(pos);
-            if(res != .air) return res;
+            if(res != .air) return .{.product = product, .tile = res};
         }
-        return Tile.air;
+        return .{.product = null, .tile = Tile.Air};
     }
 
     fn physicsStep(world: *World) void {
         // 1. conveyors move
         // - an object can only move in one direction at once
+        //   - we could do something fun like if an object is pushed in two directions
+        //      at once, it locks up both conveyor belts
+
+        // ok idk let's just start. figure out edge cases later. that way we can start on ui and stuff
+
+        for(world.products) |*product| {
+            var iter_pos = product.pos;
+            while(iter_pos[z] < product.size[z]) : ({
+                iter_pos[x] += 1;
+                if(iter_pos[x] > product.size[x]) {
+                    iter_pos[y] += 1;
+                    iter_pos[x] = product.pos[x];
+                }
+                if(iter_pos[y] > product.size[y]) {
+                    iter_pos[z] += 1;
+                    iter_pos[y] = product.pos[y];
+                }
+            }) {
+                const tile = product.getTile(iter_pos);
+                if(tile.id == .conveyor) {
+                    // check if there's an object above
+                    // push the object if possible
+                }
+            }
+        }
     }
 };

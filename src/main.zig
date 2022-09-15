@@ -30,18 +30,24 @@ pub fn main2() !void {
     var world = try game.World.init();
     defer world.deinit();
 
+    const t_block = game.Tile{.id = .block};
+    const t_conveyor_w = game.Tile{.id = .conveyor, .data_1 = 0};
+    const t_conveyor_a = game.Tile{.id = .conveyor, .data_1 = 1};
+    // const t_conveyor_s = game.Tile{.id = .conveyor, .data_1 = 2};
+    // const t_conveyor_d = game.Tile{.id = .conveyor, .data_1 = 3};
+    const t_air = game.Tile{.id = .air};
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
-            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
-            .block, .conveyor_a, .conveyor_a, .conveyor_a, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .conveyor_w, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
-            .block, .block, .block, .block, .block, .block, .block, .block, .block, .block,
+            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
         });
         const newproduct = game.Product{
             .id = @intToEnum(game.ProductID, 1),
@@ -55,14 +61,14 @@ pub fn main2() !void {
     }
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
-            .air, .air, .air, .air, .air,
-            .air, .air, .block, .block, .air,
-            .air, .air, .block, .block, .air,
-            .air, .air, .block, .air, .air,
-            .air, .air, .air, .air, .air,
+            t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_block, t_block, t_air,
+            t_air, t_air, t_block, t_block, t_air,
+            t_air, t_air, t_block, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
-            .id = @intToEnum(game.ProductID, 1),
+            .id = @intToEnum(game.ProductID, 2),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
