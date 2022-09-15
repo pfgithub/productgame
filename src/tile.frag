@@ -46,6 +46,10 @@ vec4 drawTile(uvec4 surrounding[9], vec2 position) {
         float vlen = length(position);
         vec4 edge_color = vec4(0.6, 0.6, 0.6, 1.0);
         if(surrounding[1].x == TILE_air) {
+            // smoothstep(position.y, -0.9, -0.10)
+            // smoothstep (start, end) enables or disables an effect, providing
+            // a smooth transition within the specified range
+            // so you can multiply it
             if(position.y < -0.9) return edge_color;
         }
         if(surrounding[3].x == TILE_air) {
