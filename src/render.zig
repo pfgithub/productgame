@@ -117,9 +117,16 @@ const TileShader = struct {
     );
 };
 
-fn intStr(comptime int_: u8) []const u8 {
+fn srcStr(comptime srcloc: std.builtin.SourceLocation) []const u8 {
+    return "#line " ++ intStr(srcloc.line + 1) ++ " \"" ++ srcloc.file ++ "\"";
+}
+fn intStr(comptime int_: comptime_int) []const u8 {
     var int = int_;
     var res: []const u8 = "";
+    if(int < 0) {
+        res = "-" ++ res;
+        int = -int;
+    }
     while(int > 0) {
         const digit = int % 10;
         int /= 10;
