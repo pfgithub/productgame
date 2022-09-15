@@ -270,13 +270,21 @@ pub const Renderer = struct {
     }
 
     pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3) game.Vec2f {
-        _ = renderer;
-        const ws_x = @intToFloat(f32, world_space[game.x]);
-        const ws_y = @intToFloat(f32, world_space[game.y]);
-        return game.Vec2f{
-            (ws_x - 10) / 10,
-            (-ws_y + 10) / 10,
+        var res = game.Vec2f{
+            @intToFloat(f32, world_space[game.x]),
+            @intToFloat(f32, world_space[game.y]),
         };
+        res = game.Vec2f{
+            (res[game.x] - 10) / 10,
+            (-res[game.y] + 10) / 10,
+        };
+        const ratio = @intToFloat(f32, renderer.platform.window_size[game.x]) / @intToFloat(f32, renderer.platform.window_size[game.y]);
+        if(ratio > 1.0) {
+            res[game.x] *= 1 / ratio;
+        }else{
+            res[game.y] *= ratio;
+        }
+        return res;
     }
 
     pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product) !void {
