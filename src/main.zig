@@ -95,6 +95,11 @@ pub fn main2() !void {
                             fullscreen =! fullscreen;
                         };
                     },
+                    'r' => {
+                        renderer.recompileShaders() catch |e| {
+                            log.err("Failed to recompile shaders: {}", .{e});
+                        };
+                    },
                     else => {},
                 }
             }else if(event.type == c.SDL_QUIT) {

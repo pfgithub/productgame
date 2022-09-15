@@ -107,13 +107,11 @@ const TileShader = struct {
         \\#version 330
         ++ "\n" ++ shaderInputCodegen(Vertex) ++ "\n" ++
         \\#define VERTEX_SHADER
-        ++ "\n" ++ @embedFile("tile.frag")
     );
     const fragment_source = (
         \\#version 330
         ++ "\n" ++ tile_ids_code ++ "\n" ++
         \\#define FRAGMENT_SHADER
-        ++ "\n" ++ @embedFile("tile.frag")
     );
 };
 
@@ -178,10 +176,25 @@ pub const Renderer = struct {
 
     product_render_data: std.ArrayList(ProductRenderData),
 
-    pub fn compileShaders(renderer: *Renderer) !void {
-        log.info("Compiling shaders…", .{});
-        var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, TileShader.vertex_source);
-        var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, TileShader.fragment_source);
+    pub fn recompileShaders(renderer: *Renderer) !void {
+        log.info("{s}ompiling shaders…", .{if(renderer.shader_program == 0) "C" else "Rec"});
+
+        const shader_file_source = try std.fs.cwd().readFileAlloc(allocator(), "src/tile.frag", std.math.maxInt(usize));
+        defer allocator().free(shader_file_source);
+
+        var vertex_source_al = std.ArrayList(u8).init(allocator());
+        defer vertex_source_al.deinit();
+        try vertex_source_al.appendSlice(TileShader.vertex_source);
+        try vertex_source_al.appendSlice("\n");
+        try vertex_source_al.appendSlice(shader_file_source);
+        var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, vertex_source_al.items);
+
+        var fragment_source_al = std.ArrayList(u8).init(allocator());
+        defer fragment_source_al.deinit();
+        try fragment_source_al.appendSlice(TileShader.fragment_source);
+        try fragment_source_al.appendSlice("\n");
+        try fragment_source_al.appendSlice(shader_file_source);
+        var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, fragment_source_al.items);
 
         var shader_program: c_uint = c.glCreateProgram();
         try sdl.gewrap(c.glAttachShader(shader_program, vertex_shader));
@@ -191,6 +204,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glUseProgram(shader_program));
         errdefer {
             if(renderer.shader_program != 0) {
+                // TODO glDeleteShader(the shaders)
                 sdl.gewrap(c.glUseProgram(renderer.shader_program)) catch unreachable;
             }
         }
@@ -339,7 +353,7 @@ pub const Renderer = struct {
     }
 
     pub fn renderWorld(renderer: *Renderer) !void {
-        if(renderer.shader_program == 0) try renderer.compileShaders();
+        if(renderer.shader_program == 0) try renderer.recompileShaders();
         try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
         try renderer.updateBuffers();
         try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));
