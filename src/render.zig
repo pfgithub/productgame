@@ -33,7 +33,7 @@ fn attribFields(comptime a: type) []const AttribTypeInfo {
     return infos;
 }
 fn shaderInputCodegen(comptime a: type) []const u8 {
-    var res: []const u8 = "";
+    var res: []const u8 = "#line 0 \"-shader-input-generated-\"\n";
     for(attribFields(a)) |attribute| {
         res = res ++ "in " ++ attribute.glsl_type_str ++ " " ++ attribute.name ++ ";\n";
     }
@@ -127,7 +127,9 @@ fn intStr(comptime int_: comptime_int) []const u8 {
         res = "-" ++ res;
         int = -int;
     }
-    while(int > 0) {
+    if(int == 0) {
+        res = res ++ "0";
+    } else while(int > 0) {
         const digit = int % 10;
         int /= 10;
         res = res ++ &[_]u8{digit + '0'};
@@ -135,7 +137,7 @@ fn intStr(comptime int_: comptime_int) []const u8 {
     return res;
 }
 const tile_ids_code = blk: {
-    var res: []const u8 = "";
+    var res: []const u8 = "#line 0 \"-tile-ids-generated-\"\n";
     for(std.meta.tags(game.TileID)) |tile_id| {
         res = res ++ "#define TILE_" ++ @tagName(tile_id) ++ " " ++ intStr(@enumToInt(tile_id)) ++ "u\n";
     }
@@ -163,6 +165,7 @@ pub const Renderer = struct {
     vertex_array: c.GLuint,
     vertex_buffer: c.GLuint,
     vertices: c.GLint,
+    shader_program: c.GLuint,
     u_tbo_tex: c.GLint,
     tiles_data_buffer: c.GLuint,
     tiles_texture: c.GLuint,
@@ -175,10 +178,8 @@ pub const Renderer = struct {
 
     product_render_data: std.ArrayList(ProductRenderData),
 
-    pub fn init(platform: *plat.Platform, world: *const game.World) !Renderer {
-        const gl_ver = try sdl.gewrap(c.glGetString(c.GL_VERSION));
-        log.info("gl ver: {s}", .{std.mem.span(gl_ver)});
-
+    pub fn compileShaders(renderer: *Renderer) !void {
+        log.info("Compiling shaders…", .{});
         var vertex_shader: c_uint = try sdl.createCompileShader(c.GL_VERTEX_SHADER, TileShader.vertex_source);
         var fragment_shader: c_uint = try sdl.createCompileShader(c.GL_FRAGMENT_SHADER, TileShader.fragment_source);
 
@@ -188,6 +189,25 @@ pub const Renderer = struct {
         try shaderBindAttributes(TileShader, shader_program);
         try sdl.gewrap(c.glLinkProgram(shader_program));
         try sdl.gewrap(c.glUseProgram(shader_program));
+        errdefer {
+            if(renderer.shader_program != 0) {
+                sdl.gewrap(c.glUseProgram(renderer.shader_program)) catch unreachable;
+            }
+        }
+
+        const u_tbo_tex = c.glGetUniformLocation(shader_program, "u_tbo_tex");
+
+        if(renderer.shader_program != 0) {
+            sdl.gewrap(c.glDeleteProgram(renderer.shader_program)) catch unreachable;
+        }
+        renderer.shader_program = shader_program;
+        renderer.u_tbo_tex = u_tbo_tex;
+        log.info("✓ Done", .{});
+    }
+
+    pub fn init(platform: *plat.Platform, world: *const game.World) !Renderer {
+        const gl_ver = try sdl.gewrap(c.glGetString(c.GL_VERSION));
+        log.info("gl ver: {s}", .{std.mem.span(gl_ver)});
 
         var vertex_array: c.GLuint = undefined;
         try sdl.gewrap(c.glGenVertexArrays(1, &vertex_array));
@@ -198,8 +218,6 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, vertex_buffer));
 
         try shaderActivateAttributes(TileShader);
-
-        const u_tbo_tex = c.glGetUniformLocation(shader_program, "u_tbo_tex");
 
         var tiles_data_buffer: c.GLuint = undefined;
         try sdl.gewrap(c.glGenBuffers(1, &tiles_data_buffer));
@@ -220,7 +238,8 @@ pub const Renderer = struct {
             .vertex_array = vertex_array,
             .vertex_buffer = vertex_buffer,
             .vertices = 0,
-            .u_tbo_tex = u_tbo_tex,
+            .shader_program = 0,
+            .u_tbo_tex = 0,
             .tiles_data_buffer = tiles_data_buffer,
             .tiles_texture = tiles_texture,
 
@@ -320,6 +339,7 @@ pub const Renderer = struct {
     }
 
     pub fn renderWorld(renderer: *Renderer) !void {
+        if(renderer.shader_program == 0) try renderer.compileShaders();
         try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
         try renderer.updateBuffers();
         try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));

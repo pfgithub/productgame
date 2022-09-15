@@ -26,16 +26,16 @@ uvec4 getMem(int ptr) {
     return texelFetch(u_tbo_tex, ptr);
 }
 uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
-    //if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
-    //    return uvec4(0, 0, 0, 0); // out of bounds; return air tile
-    //}
+    if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
+       return uvec4(0, 0, 0, 0); // out of bounds; return air tile
+    }
     return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
 }
 
 vec4 drawTile(uvec4 surrounding[9]) {
     uvec4 tile = surrounding[4];
 
-    if(tile.x == 0u) discard;
+    if(tile.x == TILE_air) discard;
     if(tile.x == TILE_block) return vec4(1.0f, 0.0, 0.0, 1.0);
     if(tile.x == TILE_conveyor) return vec4(0.0, 1.0, 0.0, 1.0);
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
