@@ -274,8 +274,8 @@ pub const Renderer = struct {
         const ws_x = @intToFloat(f32, world_space[game.x]);
         const ws_y = @intToFloat(f32, world_space[game.y]);
         return game.Vec2f{
-            (ws_x - 5) / 10,
-            (ws_y - 5) / 10,
+            (ws_x - 10) / 10,
+            (-ws_y + 10) / 10,
         };
     }
 
