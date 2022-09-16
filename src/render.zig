@@ -8,6 +8,9 @@ const game = @import("game.zig");
 const c = sdl.c;
 const log = std.log.scoped(.render);
 
+const Vec3f = game.Vec3f;
+const Vec3i = game.Vec3;
+
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
@@ -168,6 +171,10 @@ pub const Renderer = struct {
     tiles_data_buffer: c.GLuint,
     tiles_texture: c.GLuint,
 
+    timestamp: f64 = 0,
+    frame_start_timestamp: f64 = 0,
+    frame_start_id: usize = 1,
+
     // TODO: preserve the buffer across frames and only update what is needed.
     // we have to use an allocator or something though.
     // anyway, perf is fine right now so who cares. probably only needed if we're going to
@@ -261,7 +268,9 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn renderFrame(renderer: *Renderer) !void {
+    pub fn renderFrame(renderer: *Renderer, timestamp: f64) !void {
+        renderer.timestamp = timestamp;
+
         try sdl.gewrap(c.glViewport(0, 0, renderer.platform.window_size[game.x], renderer.platform.window_size[game.y]));
         try sdl.gewrap(c.glClearColor(1.0, 0.0, 1.0, 0.0));
         try sdl.gewrap(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT));
@@ -269,10 +278,10 @@ pub const Renderer = struct {
         try renderer.renderWorld();
     }
 
-    pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3) game.Vec2f {
+    pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3f) game.Vec2f {
         var res = game.Vec2f{
-            @intToFloat(f32, world_space[game.x]),
-            @intToFloat(f32, world_space[game.y]),
+            world_space[game.x],
+            world_space[game.y],
         };
         res = game.Vec2f{
             (res[game.x] - 10) / 10,
@@ -287,7 +296,7 @@ pub const Renderer = struct {
         return res;
     }
 
-    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product) !void {
+    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product, progress: f32) !void {
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 
@@ -311,8 +320,10 @@ pub const Renderer = struct {
         }
         var z_layer: i32 = 0;
         while(z_layer < product.size[game.z]) : (z_layer += 1) {
-            const tile_screen_0 = renderer.worldToScreen(product.pos);
-            const tile_screen_1 = renderer.worldToScreen(product.pos + product.size);
+            const our_progress: f32 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
+            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos));
+            const tile_screen_0 = renderer.worldToScreen(pos_anim);
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(product.size));
             const tile_x0: f32 = tile_screen_0[game.x];
             const tile_x1: f32 = tile_screen_1[game.x];
             const tile_y0: f32 = tile_screen_0[game.y];
@@ -336,20 +347,29 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
             @intCast(c_long, result_ptr_idx * 4),
-            @intCast(c_long, @sizeOf(f32) * res_byte_data.items.len),
+            @intCast(c_long, @sizeOf(u8) * res_byte_data.items.len),
             res_byte_data.items.ptr,
         ));
         renderer.temp_this_frame_bufidx += res_byte_data.items.len / 4;
     }
 
-    pub fn updateBuffers(renderer: *Renderer) !void {
+    pub fn updateBuffers(renderer: *Renderer, progress: f32) !void {
         var final_rectangles = std.ArrayList(TileShader.Vertex).init(allocator());
         defer final_rectangles.deinit();
 
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
-        renderer.temp_this_frame_bufidx = 1;
+        const header_data: []const u8 = &[_]u8{
+            std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
+        };
+        try sdl.gewrap(c.glBufferSubData(
+            c.GL_TEXTURE_BUFFER,
+            @intCast(c_long, 1 * 4),
+            @intCast(c_long, @sizeOf(u8) * header_data.len),
+            header_data.ptr,
+        ));
+        renderer.temp_this_frame_bufidx = 2;
         for(renderer.world.products.items) |product| {
-            try renderer.updateProduct(&final_rectangles, product);
+            try renderer.updateProduct(&final_rectangles, product, progress);
         }
         try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
         try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
@@ -362,10 +382,39 @@ pub const Renderer = struct {
 
     pub fn renderWorld(renderer: *Renderer) !void {
         if(renderer.shader_program == 0) try renderer.recompileShaders();
+
+        if(renderer.frame_start_id != renderer.world.physics_time) {
+            renderer.frame_start_id = renderer.world.physics_time;
+            renderer.frame_start_timestamp = renderer.timestamp;
+        }
+
+        const progress = smoothstep(renderer.frame_start_timestamp, renderer.frame_start_timestamp + 100, renderer.timestamp);
+    
         try sdl.gewrap(c.glActiveTexture(c.GL_TEXTURE0));
-        try renderer.updateBuffers();
+        try renderer.updateBuffers(progress);
         try sdl.gewrap(c.glUniform1i(renderer.u_tbo_tex, 0));
         try sdl.gewrap(c.glBindVertexArray(renderer.vertex_array));
         try sdl.gewrap(c.glDrawArrays(c.GL_TRIANGLES, 0, renderer.vertices));
     }
 };
+
+fn interpolateVec3f(t: f32, a: Vec3f, b: Vec3f) Vec3f {
+    return (b - a) * @splat(3, t) + a;
+}
+
+fn smoothstep(min: f64, max: f64, x: f64) f32 {
+    var v = (x - min) / (max - min);
+    v = std.math.min(v, 1.0);
+    v = std.math.max(v, 0.0);
+    v = v * v * (3.0 - 2.0 * v);
+
+    return @floatCast(f32, v);
+}
+
+fn vec3iToF(a: Vec3i) Vec3f {
+    return Vec3f{
+        @intToFloat(f32, a[game.x]),
+        @intToFloat(f32, a[game.y]),
+        @intToFloat(f32, a[game.z]),
+    };
+}

@@ -86,8 +86,8 @@ pub fn main2() !void {
 
     app: while(true) {
         try sdl.glCheckError();
-        var ms_timestamp = @intToFloat(f64, std.time.milliTimestamp());
-        defer prev_timestamp = ms_timestamp;
+        const curr_timestamp = @intToFloat(f64, std.time.milliTimestamp());
+        defer prev_timestamp = curr_timestamp;
         // log.info("mspf: {d}", .{ms_timestamp - prev_timestamp});
 
         while(platform.pollEvent()) |event| {
@@ -116,7 +116,7 @@ pub fn main2() !void {
             }
         }
 
-        try renderer.renderFrame();
+        try renderer.renderFrame(curr_timestamp);
 
         platform.present();
     }

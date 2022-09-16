@@ -36,7 +36,7 @@ float map(float value, float min1, float max1, float min2, float max2) {
   return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
 
-vec4 drawTile(uvec4 surrounding[9], vec2 position) {
+vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
     if(tile.x == TILE_air) discard;
@@ -72,12 +72,14 @@ vec4 drawTile(uvec4 surrounding[9], vec2 position) {
         color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
         return vec4(color, 1.0);
     }
-    if(tile.x == TILE_conveyor) return vec4(0.0, 1.0, 0.0, 1.0);
+    if(tile.x == TILE_conveyor) return vec4(progress, 1.0, 0.0, 1.0);
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
     return vec4(0.0, 1.0, 1.0, 1.0);
 }
 
 void main() {
+    float progress = float(getMem(1).r) / 255.0;
+
     uvec4 header = getMem(v_tile_data_ptr);
     ivec3 size = ivec3(header.xyz);
     ivec3 pos = ivec3(floor(v_tile_position));
@@ -92,7 +94,7 @@ void main() {
         getTile(v_tile_data_ptr, pos + ivec3(0, 1, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
     );
-    o_color = drawTile(surrounding, (mod(v_tile_position.xy, 1.0)) * 2.0 - 1.0);
+    o_color = drawTile(progress, surrounding, (mod(v_tile_position.xy, 1.0)) * 2.0 - 1.0);
     if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 

@@ -63,6 +63,7 @@ pub const Product = struct {
     pos: Vec3,
     size: Vec3,
     last_moved: usize = 0,
+    moved_from: Vec3 = Vec3{0, 0, 0},
 
     pub fn deinit(product: *Product) void {
         allocator().free(product.tiles);
@@ -106,7 +107,7 @@ pub const World = struct {
     }
 
     pub fn physicsStep(world: *World) void {
-        defer world.physics_time += 1;
+        world.physics_time += 1;
         // 1. conveyors move
         // - an object can only move in one direction at once
         //   - we could do something fun like if an object is pushed in two directions
@@ -133,6 +134,7 @@ pub const World = struct {
                     if(tile_above.product == product) continue;
                     if(tile_above.product.last_moved == world.physics_time) continue;
                     const dir = conveyorDir(tile);
+                    tile_above.product.moved_from = tile_above.product.pos;
                     tile_above.product.pos += Vec3{dir[x], dir[y], 0};
                     tile_above.product.last_moved = world.physics_time;
                 }
