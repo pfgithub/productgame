@@ -40,11 +40,11 @@ pub fn main2() !void {
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-            t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-            t_conveyor_d, t_conveyor_d, t_conveyor_d, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
@@ -52,6 +52,29 @@ pub fn main2() !void {
         });
         const newproduct = game.Product{
             .id = @intToEnum(game.ProductID, 1),
+            // MxN array of tiles
+            .tiles = newproduct_tiles,
+            .tiles_updated = 1,
+            .pos = game.Vec3{5, 5, -1},
+            .size = game.Vec3{10, 10, 1},
+        };
+        try world.products.append(newproduct);
+    }
+    {
+        const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_conveyor_s, t_air, t_air, t_conveyor_w, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_conveyor_s, t_air, t_air, t_conveyor_w, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_conveyor_s, t_air, t_air, t_conveyor_w, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_conveyor_d, t_conveyor_d, t_conveyor_d, t_conveyor_w, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+        });
+        const newproduct = game.Product{
+            .id = @intToEnum(game.ProductID, 2),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
@@ -69,7 +92,7 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
-            .id = @intToEnum(game.ProductID, 2),
+            .id = @intToEnum(game.ProductID, 3),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,

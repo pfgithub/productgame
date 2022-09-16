@@ -124,7 +124,7 @@ void main() {
     o_color = drawTile(progress, surrounding, tilepos);
     if(o_color.a < 0.99 && tilepos.y < 0.2) {
         uvec4 surrounding2[9] = getSurrounding(pos + ivec3(0, -1, 0), size);
-        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y * 0.2));
+        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / 0.2));
         o_color = blend(o_color, vec4(ncol.xyz * 0.5, ncol.a));
     }
     if(o_color.a < 0.99) {
