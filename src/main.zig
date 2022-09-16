@@ -105,6 +105,10 @@ pub fn main2() !void {
                             log.err("Failed to recompile shaders: {}", .{e});
                         };
                     },
+                    c.SDLK_RIGHT => {
+                        world.physicsStep();
+                        std.log.info("Step", .{});
+                    },
                     else => {},
                 }
             }else if(event.type == c.SDL_QUIT) {
