@@ -325,7 +325,7 @@ pub const Renderer = struct {
         while(z_layer < product.size[game.z]) : (z_layer += 1) {
             const our_progress: f32 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos));
-            const yoffset: f32 = -@intToFloat(f32, product.pos[game.z]) * 0.2;
+            const yoffset: f32 = -@intToFloat(f32, product.pos[game.z] + z_layer) * 0.2;
             const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
             const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(product.size) + Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
             const tile_x0: f32 = tile_screen_0[game.x];

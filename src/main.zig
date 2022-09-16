@@ -90,6 +90,12 @@ pub fn main2() !void {
             t_air, t_air, t_block, t_block, t_air,
             t_air, t_air, t_block, t_air, t_air,
             t_air, t_air, t_air, t_air, t_air,
+
+            t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_block, t_air,
+            t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
             .id = @intToEnum(game.ProductID, 3),
@@ -97,7 +103,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = game.Vec3{6, 7, 1},
-            .size = game.Vec3{5, 5, 1},
+            .size = game.Vec3{5, 5, 2},
         };
         try world.products.append(newproduct);
     }
