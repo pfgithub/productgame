@@ -52,8 +52,8 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
         // maybe I want these parabolas
         // and then if the side has a tile, cut off that side of the parabola
 
-        float x = (position.x + 1) / 2;
-        float y = (position.y + 1) / 2;
+        float x = position.x;
+        float y = position.y;
         float xpb = (4 * x * (1 - x));
         float ypb = (4 * y * (1 - y));
         if(surrounding[1].x != TILE_air) {
@@ -72,7 +72,24 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
         color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
         return vec4(color, 1.0);
     }
-    if(tile.x == TILE_conveyor) return vec4(progress, 1.0, 0.0, 1.0);
+    if(tile.x == TILE_conveyor) {
+        float axis = 0;
+        float cross_axis = 0;
+        if(tile.y == 0u) {
+            axis = position.y;
+            cross_axis = 1-position.x;
+        }else if(tile.y == 1u) {
+            axis = position.x;
+            cross_axis = position.y;
+        }else if(tile.y == 2u) {
+            axis =1-position.x;
+            cross_axis = 1-position.y;
+        }else if(tile.y == 3u) {
+            axis = 1-position.y;
+            cross_axis = position.x;
+        }
+        return vec4(mod(axis + progress, 1.0), cross_axis, 0.0, 1.0);
+    }
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
     return vec4(0.0, 1.0, 1.0, 1.0);
 }
@@ -94,7 +111,7 @@ void main() {
         getTile(v_tile_data_ptr, pos + ivec3(0, 1, 0), size),
         getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
     );
-    o_color = drawTile(progress, surrounding, (mod(v_tile_position.xy, 1.0)) * 2.0 - 1.0);
+    o_color = drawTile(progress, surrounding, mod(v_tile_position.xy, 1.0));
     if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 

@@ -33,17 +33,17 @@ pub fn main2() !void {
     const t_block = game.Tile{.id = .block};
     const t_conveyor_w = game.Tile{.id = .conveyor, .data_1 = 0};
     const t_conveyor_a = game.Tile{.id = .conveyor, .data_1 = 1};
-    // const t_conveyor_s = game.Tile{.id = .conveyor, .data_1 = 2};
-    // const t_conveyor_d = game.Tile{.id = .conveyor, .data_1 = 3};
+    const t_conveyor_d = game.Tile{.id = .conveyor, .data_1 = 2};
+    const t_conveyor_s = game.Tile{.id = .conveyor, .data_1 = 3};
     const t_air = game.Tile{.id = .air};
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
             t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_conveyor_d, t_conveyor_d, t_conveyor_d, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
             t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
             t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
             t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
