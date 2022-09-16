@@ -15,6 +15,11 @@ pub const Platform = struct {
     pub fn init() !Platform {
         try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
 
+        // - for mac trackpad gestures
+        // if(c.SDL_SetHint( c.SDL_HINT_MOUSE_TOUCH_EVENTS, "1" ) == c.SDL_FALSE) {
+        //     log.info("Emouse_touch_events 0?", .{});
+        // }
+
         try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_DOUBLEBUFFER, 1 ));
         try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_ACCELERATED_VISUAL, 1 ));
         try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_RED_SIZE, 8 ));

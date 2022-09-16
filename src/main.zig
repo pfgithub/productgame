@@ -138,6 +138,17 @@ pub fn main2() !void {
             }else if(event.type == c.SDL_QUIT) {
                 break :app;
             }
+
+            // if(event.type == c.SDL_MOUSEWHEEL) {
+            //     std.log.info("mwheel {d} {d}", .{event.wheel.preciseX, event.wheel.preciseY});
+            // }
+            // if(event.type == c.SDL_MULTIGESTURE) {
+            //     // rotation: dTheta, zoom: dDist
+            //     // it doesn't include scroll
+
+            //     // weird, it gives physical location on the trackpad normalized from 0 to 1
+            //     std.log.info("zoom {d} {d} {d} {d}", .{event.mgesture.dDist, event.mgesture.dDist, event.mgesture.x, event.mgesture.y});
+            // }
         }
 
         try renderer.renderFrame(curr_timestamp);

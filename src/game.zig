@@ -135,6 +135,7 @@ pub const World = struct {
                     if(tile_above.product == product) continue;
                     if(tile_above.product.last_moved == world.physics_time) continue;
                     const dir = conveyorDir(tile);
+
                     tile_above.product.moved_from = tile_above.product.pos;
                     tile_above.product.pos += Vec3{dir[x], dir[y], 0};
                     tile_above.product.last_moved = world.physics_time;
