@@ -249,6 +249,9 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glGenTextures(1, &tiles_texture));
 
         try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
+        // only enable if we need it
+        // try sdl.gewrap(c.glEnable(c.GL_BLEND));
+        // try sdl.gewrap(c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA));
 
         var product_render_data = std.ArrayList(ProductRenderData).init(allocator());
 
@@ -322,17 +325,18 @@ pub const Renderer = struct {
         while(z_layer < product.size[game.z]) : (z_layer += 1) {
             const our_progress: f32 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos));
-            const tile_screen_0 = renderer.worldToScreen(pos_anim);
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(product.size));
+            const yoffset: f32 = -@intToFloat(f32, product.pos[game.z]) * 0.2;
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(product.size) + Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
             const tile_x0: f32 = tile_screen_0[game.x];
             const tile_x1: f32 = tile_screen_1[game.x];
             const tile_y0: f32 = tile_screen_0[game.y];
             const tile_y1: f32 = tile_screen_1[game.y];
             const tile_z: f32 = -@intToFloat(f32, product.pos[game.z] + z_layer) / 100.0;
-            const tile_data_x0: f32 = 0;
-            const tile_data_x1: f32 = @intToFloat(f32, product.size[game.x]);
-            const tile_data_y0: f32 = 0;
-            const tile_data_y1: f32 = @intToFloat(f32, product.size[game.y]);
+            const tile_data_x0: f32 = -1;
+            const tile_data_x1: f32 = @intToFloat(f32, product.size[game.x]) + 1;
+            const tile_data_y0: f32 = -1;
+            const tile_data_y1: f32 = @intToFloat(f32, product.size[game.y]) + 1;
             const tile_data_z0: f32 = @intToFloat(f32, z_layer);
             const tile_data_ptr: c.GLuint = @intCast(c.GLuint, result_ptr_idx);
             try final_rectangles.appendSlice(&[_]TileShader.Vertex{

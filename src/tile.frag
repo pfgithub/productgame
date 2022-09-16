@@ -6,10 +6,10 @@ out vec3 v_tile_position;
 out vec3 v_qposition;
 out float v_z;
 void main() {
+    v_z = -i_position.z * 100.0;
     gl_Position = vec4( i_position, 1.0 );
     v_tile_data_ptr = int(i_tile_data_ptr);
     v_tile_position = i_tile_position;
-    v_z = -i_position.z * 100.0;
     v_qposition = i_position;
 }
 
@@ -39,7 +39,7 @@ float map(float value, float min1, float max1, float min2, float max2) {
 vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
-    if(tile.x == TILE_air) discard;
+    if(tile.x == TILE_air) return vec4(0.0, 0.0, 0.0, 0.0);
     if(tile.x == TILE_lab_tile || tile.x == TILE_block) {
         // ok what I actually want is:
         // - imagine an inset rounded rectangle
@@ -95,24 +95,41 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     return vec4(0.0, 1.0, 1.0, 1.0);
 }
 
+uvec4[9] getSurrounding(ivec3 center, ivec3 size) {
+    return uvec4[9](
+        getTile(v_tile_data_ptr, center + ivec3(-1, -1, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, -1, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, -1, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(-1, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(-1, 1, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, 1, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, 1, 0), size)
+    );
+}
+
+vec4 blend(vec4 a, vec4 b) {
+    return (a * a.a) + (b * (1 - a.a));
+}
+
 void main() {
     float progress = float(getMem(1).r) / 255.0;
 
     uvec4 header = getMem(v_tile_data_ptr);
     ivec3 size = ivec3(header.xyz);
     ivec3 pos = ivec3(floor(v_tile_position));
-    uvec4 surrounding[9] = uvec4[9](
-        getTile(v_tile_data_ptr, pos + ivec3(-1, -1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(0, -1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(1, -1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(-1, 0, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(0, 0, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(1, 0, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(-1, 1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(0, 1, 0), size),
-        getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
-    );
-    o_color = drawTile(progress, surrounding, mod(v_tile_position.xy, 1.0));
+    uvec4 surrounding[9] = getSurrounding(pos, size);
+    vec2 tilepos = mod(v_tile_position.xy, 1.0);
+    o_color = drawTile(progress, surrounding, tilepos);
+    if(o_color.a < 0.99 && tilepos.y < 0.2) {
+        uvec4 surrounding2[9] = getSurrounding(pos + ivec3(0, -1, 0), size);
+        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y * 0.2));
+        o_color = blend(o_color, vec4(ncol.xyz * 0.5, ncol.a));
+    }
+    if(o_color.a < 0.99) {
+        discard;
+    }
     // if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 
