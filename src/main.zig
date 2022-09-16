@@ -88,7 +88,7 @@ pub fn main2() !void {
         try sdl.glCheckError();
         var ms_timestamp = @intToFloat(f64, std.time.milliTimestamp());
         defer prev_timestamp = ms_timestamp;
-        // std.log.info("mspf: {d}", .{ms_timestamp - prev_timestamp});
+        // log.info("mspf: {d}", .{ms_timestamp - prev_timestamp});
 
         while(platform.pollEvent()) |event| {
             if(event.type == c.SDL_KEYDOWN) {
