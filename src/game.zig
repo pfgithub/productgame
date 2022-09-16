@@ -28,9 +28,10 @@ pub fn rectPointToIndex(point: Vec3, rect_pos: Vec3, rect_size: Vec3) ?usize {
 
 pub const TileID = enum(u8) {
     air,
-    block,
+    lab_tile,
     conveyor,
     spawner,
+    block,
 };
 pub const Tile = struct {
     id: TileID,

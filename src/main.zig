@@ -30,6 +30,7 @@ pub fn main2() !void {
     var world = try game.World.init();
     defer world.deinit();
 
+    const t_lab = game.Tile{.id = .lab_tile};
     const t_block = game.Tile{.id = .block};
     const t_conveyor_w = game.Tile{.id = .conveyor, .data_1 = 0};
     const t_conveyor_a = game.Tile{.id = .conveyor, .data_1 = 1};
@@ -38,16 +39,16 @@ pub fn main2() !void {
     const t_air = game.Tile{.id = .air};
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
-            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_conveyor_s, t_block, t_block, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_conveyor_d, t_conveyor_d, t_conveyor_d, t_conveyor_w, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
-            t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block, t_block,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_conveyor_s, t_lab, t_lab, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_conveyor_d, t_conveyor_d, t_conveyor_d, t_conveyor_w, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
+            t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
         });
         const newproduct = game.Product{
             .id = @intToEnum(game.ProductID, 1),

@@ -40,7 +40,7 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
     if(tile.x == TILE_air) discard;
-    if(tile.x == TILE_block) {
+    if(tile.x == TILE_lab_tile || tile.x == TILE_block) {
         // ok what I actually want is:
         // - imagine an inset rounded rectangle
         // - blur it
@@ -70,6 +70,7 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
         }
         vec3 color = vec3(1.0, 1.0, 1.0);
         color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
+        if(tile.x == TILE_block) color *= vec3(0.9);
         return vec4(color, 1.0);
     }
     if(tile.x == TILE_conveyor) {
@@ -112,7 +113,7 @@ void main() {
         getTile(v_tile_data_ptr, pos + ivec3(1, 1, 0), size)
     );
     o_color = drawTile(progress, surrounding, mod(v_tile_position.xy, 1.0));
-    if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
+    // if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 
 #endif
