@@ -121,9 +121,19 @@ pub fn main2() !void {
         // log.info("mspf: {d}", .{ms_timestamp - prev_timestamp});
 
         while(platform.pollEvent()) |event| {
-            if(event.type == c.SDL_KEYDOWN) {
+            if(event.type == c.SDL_MOUSEBUTTONDOWN) {
+                try platform.startCaptureMouse();
+            }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
+                const minsz = @intToFloat(f32, std.math.min(platform.window_size[game.x], platform.window_size[game.y]));
+                renderer.camera_pos += game.Vec2f{
+                    -@intToFloat(f32, event.motion.xrel) / minsz,
+                    @intToFloat(f32, event.motion.yrel) / minsz,
+                };
+            }else if(event.type == c.SDL_KEYDOWN) {
                 switch(event.key.keysym.sym) {
-                    c.SDLK_ESCAPE => {},
+                    c.SDLK_ESCAPE => {
+                        try platform.stopCaptureMouse();
+                    },
                     'f' => {
                         fullscreen =! fullscreen;
                         platform.setFullscreen(fullscreen) catch {

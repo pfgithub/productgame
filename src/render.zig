@@ -8,7 +8,9 @@ const game = @import("game.zig");
 const c = sdl.c;
 const log = std.log.scoped(.render);
 
+const Vec2f = game.Vec2f;
 const Vec3f = game.Vec3f;
+const Vec2i = game.Vec2;
 const Vec3i = game.Vec3;
 
 
@@ -175,6 +177,10 @@ pub const Renderer = struct {
     frame_start_timestamp: f64 = 0,
     frame_start_id: usize = 1,
 
+    camera_height: i32 = 0,
+    camera_pos: Vec2f = Vec2f{0.0, 0.0},
+    camera_scale: f32 = 0.1,
+
     // TODO: preserve the buffer across frames and only update what is needed.
     // we have to use an allocator or something though.
     // anyway, perf is fine right now so who cares. probably only needed if we're going to
@@ -286,16 +292,20 @@ pub const Renderer = struct {
             world_space[game.x],
             world_space[game.y],
         };
+        const yoffset: f32 = -world_space[game.z] * 0.2;
+        res[game.y] += yoffset;
         res = game.Vec2f{
-            (res[game.x] - 10) / 10,
-            (-res[game.y] + 10) / 10,
+            res[game.x] * renderer.camera_scale,
+            -res[game.y] * renderer.camera_scale,
         };
+        // res += renderer.camera_pos;
         const ratio = @intToFloat(f32, renderer.platform.window_size[game.x]) / @intToFloat(f32, renderer.platform.window_size[game.y]);
         if(ratio > 1.0) {
             res[game.x] *= 1 / ratio;
         }else{
             res[game.y] *= ratio;
         }
+        res += renderer.camera_pos;
         return res;
     }
 
@@ -324,10 +334,9 @@ pub const Renderer = struct {
         var z_layer: i32 = 0;
         while(z_layer < product.size[game.z]) : (z_layer += 1) {
             const our_progress: f32 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
-            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos));
-            const yoffset: f32 = -@intToFloat(f32, product.pos[game.z] + z_layer) * 0.2;
-            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(product.size) + Vec3f{1.0, 1.0, 0.0} + Vec3f{0, yoffset, 0});
+            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f32, z_layer)};
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[game.x], product.size[game.y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
             const tile_x0: f32 = tile_screen_0[game.x];
             const tile_x1: f32 = tile_screen_1[game.x];
             const tile_y0: f32 = tile_screen_0[game.y];

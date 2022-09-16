@@ -11,6 +11,8 @@ pub const Platform = struct {
     window: *c.SDL_Window,
 
     window_size: game.Vec2,
+    mouse_captured: bool = false,
+    capture_enterpos: game.Vec2f = game.Vec2f{0, 0},
 
     pub fn init() !Platform {
         try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
@@ -53,6 +55,25 @@ pub const Platform = struct {
             .window = window,
             .window_size = window_size,
         };
+    }
+
+    pub fn startCaptureMouse(platform: *Platform) !void {
+        try sdl.sewrap(c.SDL_SetRelativeMouseMode(c.SDL_TRUE));
+        platform.mouse_captured = true;
+        var ep_x: i32 = 0;
+        var ep_y: i32 = 0;
+        _ = c.SDL_GetMouseState(&ep_x, &ep_y);
+        platform.capture_enterpos = game.Vec2f{
+            @intToFloat(f32, ep_x) / @intToFloat(f32, platform.window_size[game.x]),
+            @intToFloat(f32, ep_y) / @intToFloat(f32, platform.window_size[game.y]),
+        };
+    }
+    pub fn stopCaptureMouse(platform: *Platform) !void {
+        platform.mouse_captured = false;
+        try sdl.sewrap(c.SDL_SetRelativeMouseMode(c.SDL_FALSE));
+        const tx: i32 = @floatToInt(i32, platform.capture_enterpos[game.x] * @intToFloat(f32, platform.window_size[game.x]));
+        const ty: i32 = @floatToInt(i32, platform.capture_enterpos[game.y] * @intToFloat(f32, platform.window_size[game.y]));
+        c.SDL_WarpMouseInWindow(platform.window, tx, ty);
     }
 
     pub fn setFullscreen(platform: *Platform, fullscreen: bool) !void {
