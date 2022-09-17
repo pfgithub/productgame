@@ -103,7 +103,7 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3{6, 7, 1},
+            .pos = game.Vec3{6, 7, 2},
             .size = game.Vec3{5, 5, 2},
         };
         try world.products.append(newproduct);
