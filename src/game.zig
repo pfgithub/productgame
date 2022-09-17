@@ -65,6 +65,7 @@ pub const Product = struct {
     size: Vec3,
     last_moved: usize = 0,
     moved_from: Vec3 = Vec3{0, 0, 0},
+    fixed: bool = false,
 
     pub fn deinit(product: *Product) void {
         allocator().free(product.tiles);
@@ -76,6 +77,35 @@ pub const Product = struct {
 
     // note: whenever setting a tile, also update the buffer data with
     // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferSubData.xhtml
+};
+
+const PosIter = struct {
+    pos: Vec3,
+    size: Vec3,
+    next_pos: Vec3,
+    pub fn start(pos: Vec3, size: Vec3) PosIter {
+        return .{
+            .pos = pos,
+            .size = size,
+            .next_pos = pos,
+        };
+    }
+    pub fn next(iter: *PosIter) ?Vec3 {
+        if(iter.next_pos[z] - iter.pos[z] >= iter.size[z]) return null;
+        const res = iter.next_pos;
+
+        iter.next_pos[x] += 1;
+        if(iter.next_pos[x] - iter.pos[x] >= iter.size[x]) {
+            iter.next_pos[y] += 1;
+            iter.next_pos[x] = iter.pos[x];
+        }
+        if(iter.next_pos[y] - iter.pos[y] >= iter.size[y]) {
+            iter.next_pos[z] += 1;
+            iter.next_pos[y] = iter.pos[y];
+        }
+
+        return res;
+    }
 };
 
 pub const World = struct {
@@ -117,30 +147,71 @@ pub const World = struct {
         // ok idk let's just start. figure out edge cases later. that way we can start on ui and stuff
 
         for(world.products.items) |*product| {
-            var iter_pos = product.pos;
-            while(iter_pos[z] - product.pos[z] < product.size[z]) : ({
-                iter_pos[x] += 1;
-                if(iter_pos[x] - product.pos[x] >= product.size[x]) {
-                    iter_pos[y] += 1;
-                    iter_pos[x] = product.pos[x];
-                }
-                if(iter_pos[y] - product.pos[y] >= product.size[y]) {
-                    iter_pos[z] += 1;
-                    iter_pos[y] = product.pos[y];
-                }
-            }) {
-                const tile = product.getTile(iter_pos);
+            var iter_pos = PosIter.start(product.pos, product.size);
+            // hmm. this is having the conveyor move the object but it would probably be better for
+            // the object to move itself
+            while(iter_pos.next()) |target_pos| {
+                const tile = product.getTile(target_pos);
                 if(tile.id == .conveyor) {
-                    const tile_above = world.getTile(iter_pos + Vec3{0, 0, 1}) orelse continue;
+                    const tile_above = world.getTile(target_pos + Vec3{0, 0, 1}) orelse continue;
                     if(tile_above.product == product) continue;
                     if(tile_above.product.last_moved == world.physics_time) continue;
                     const dir = conveyorDir(tile);
 
-                    tile_above.product.moved_from = tile_above.product.pos;
-                    tile_above.product.pos += Vec3{dir[x], dir[y], 0};
-                    tile_above.product.last_moved = world.physics_time;
+                    _ = world.pushProduct(tile_above.product, Vec3{dir[x], dir[y], 0});
                 }
             }
+
+            if(product.last_moved == world.physics_time) continue;
+            _ = world.pushProduct(product, Vec3{0, 0, -1});
         }
+    }
+
+    pub fn validatePushProduct(
+        world: *World,
+        product: *Product,
+        direction: Vec3,
+        pushable_products: *std.ArrayList(*Product),
+    ) bool {
+        if(product.fixed) return false;
+        for(pushable_products.items) |psh_p| {
+            if(product == psh_p) return true;
+        }
+        pushable_products.append(product) catch @panic("oom"); // we don't know if it's pushable
+        // yet but until we have proven it isn't, we say it is
+
+        var iter_pos = PosIter.start(product.pos + direction, product.size);
+        while(iter_pos.next()) |target_pos| {
+            const tile = world.getTile(target_pos) orelse continue;
+            if(tile.product.id == product.id) continue;
+            if(world.validatePushProduct(tile.product, direction, pushable_products)) continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    pub fn pushProduct(world: *World, product: *Product, direction: Vec3) bool {
+        // loop over all tiles in the object:
+        // - check what is at (pos + direction)
+        //   - if it has the same object id, ignore
+        //   - if it is an unseen product:
+        //     - add the product id to the push list
+
+        var pushable_products = std.ArrayList(*Product).init(allocator());
+        defer pushable_products.deinit();
+        if(!world.validatePushProduct(product, direction, &pushable_products)) {
+            return false; // push failed
+        }
+
+        // ok basically we make a Set of Product IDs that are pushable
+        // if we ever find one that isn't, we cancel and return false
+        // if all are pushable, we loop over all the products and push them
+
+        product.moved_from = product.pos;
+        product.last_moved = world.physics_time;
+        product.pos += direction;
+
+        return true;
     }
 };

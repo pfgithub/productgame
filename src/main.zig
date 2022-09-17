@@ -57,6 +57,7 @@ pub fn main2() !void {
             .tiles_updated = 1,
             .pos = game.Vec3{5, 5, -1},
             .size = game.Vec3{10, 10, 1},
+            .fixed = true,
         };
         try world.products.append(newproduct);
     }
