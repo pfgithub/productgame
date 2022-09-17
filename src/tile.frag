@@ -113,8 +113,15 @@ vec4 blend(vec4 a, vec4 b) {
     return (a * a.a) + (b * (1 - a.a));
 }
 
+int uvec4ToInt(uvec4 a) {
+    // TODO: support negatives
+    return (int(a.x) << 24) + (int(a.y) << 16) + (int(a.z) << 8) + int(a.a);
+}
+
 void main() {
     float progress = float(getMem(1).r) / 255.0;
+    ivec3 targeted_block_pos = ivec3(getMem(2).xyz);
+    int targeted_block_id = uvec4ToInt(getMem(2));
 
     uvec4 header = getMem(v_tile_data_ptr);
     ivec3 size = ivec3(header.xyz);
@@ -122,6 +129,17 @@ void main() {
     uvec4 surrounding[9] = getSurrounding(pos, size);
     vec2 tilepos = mod(v_tile_position.xy, 1.0);
     o_color = drawTile(progress, surrounding, tilepos);
+    if(v_tile_data_ptr == targeted_block_id && ivec3(floor(v_tile_position)) == targeted_block_pos) {
+        float x = tilepos.x;
+        float y = tilepos.y;
+        if(x <= 0.1 || x >= 0.9 || y <= 0.1 || y >= 0.9) {
+            o_color = vec4(0.0, 0.0, 0.0, 1.0);
+        }
+        // float xpb = (4 * x * (1 - x));
+        // float ypb = (4 * y * (1 - y));
+        // float val = map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
+        // o_color = blend(vec4(0.0, 0.0, 1.0, val), o_color);
+    }
     if(o_color.a < 0.99 && tilepos.y < 0.2) {
         uvec4 surrounding2[9] = getSurrounding(pos + ivec3(0, -1, 0), size);
         vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / 0.2));

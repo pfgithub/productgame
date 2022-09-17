@@ -371,23 +371,33 @@ pub const Renderer = struct {
         defer final_rectangles.deinit();
 
         try sdl.gewrap(c.glBindBuffer(c.GL_TEXTURE_BUFFER, renderer.tiles_data_buffer));
-        const header_data: []const u8 = &[_]u8{
-            std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
-        };
-        try sdl.gewrap(c.glBufferSubData(
-            c.GL_TEXTURE_BUFFER,
-            @intCast(c_long, 1 * 4),
-            @intCast(c_long, @sizeOf(u8) * header_data.len),
-            header_data.ptr,
-        ));
-        renderer.temp_this_frame_bufidx = 2;
+        const header_len = 4;
+        // 1. update tiles in data buffer
+        renderer.temp_this_frame_bufidx = header_len;
         for(renderer.world.products.items) |product| {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
+        // 2. update data buffer header
+        const header_data: []const u8 = &[header_len * 4]u8{
+            // unused
+            0, 0, 0, 0,
+            // progress
+            std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
+            // t_x, t_y, t_z, FLAGS :: is_ghost: bool
+            0, 0, 0, 0,
+            // t_id
+            0, 0, 0, 0,
+        };
+        try sdl.gewrap(c.glBufferSubData(
+            c.GL_TEXTURE_BUFFER,
+            0,
+            @intCast(c_long, @sizeOf(u8) * header_data.len),
+            header_data.ptr,
+        ));
         try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
         try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
 
-        // 2. update rectangles
+        // 3. update vertices
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
         try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(c_long, @sizeOf(TileShader.Vertex) * final_rectangles.items.len), @ptrCast(?*const anyopaque, final_rectangles.items), c.GL_STATIC_DRAW));
         renderer.vertices = @intCast(c.GLint, final_rectangles.items.len);
