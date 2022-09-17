@@ -108,6 +108,19 @@ uvec4[9] getSurrounding(ivec3 center, ivec3 size) {
         getTile(v_tile_data_ptr, center + ivec3(1, 1, 0), size)
     );
 }
+uvec4[9] getVerticalSurrounding(ivec3 center, ivec3 size) {
+    return uvec4[9](
+        getTile(v_tile_data_ptr, center + ivec3(-1, 0, 1), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, 0, 1), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, 0, 1), size),
+        getTile(v_tile_data_ptr, center + ivec3(-1, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, 0, 0), size),
+        getTile(v_tile_data_ptr, center + ivec3(-1, 0, -1), size),
+        getTile(v_tile_data_ptr, center + ivec3(0, 0, -1), size),
+        getTile(v_tile_data_ptr, center + ivec3(1, 0, -1), size)
+    );
+}
 
 vec4 blend(vec4 a, vec4 b) {
     return (a * a.a) + (b * (1 - a.a));
@@ -141,7 +154,7 @@ void main() {
         // o_color = blend(vec4(0.0, 0.0, 1.0, val), o_color);
     }
     if(o_color.a < 0.99 && tilepos.y < 0.2) {
-        uvec4 surrounding2[9] = getSurrounding(pos + ivec3(0, -1, 0), size);
+        uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
         vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / 0.2));
         o_color = blend(o_color, vec4(ncol.xyz * 0.5, ncol.a));
     }
