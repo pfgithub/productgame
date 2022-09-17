@@ -111,6 +111,12 @@ const PosIter = struct {
 pub const World = struct {
     products: std.ArrayList(Product),
     physics_time: usize = 1,
+    next_product_id: usize = 1,
+
+    pub fn nextProductId(world: *World) ProductID {
+        defer world.next_product_id += 1;
+        return @intToEnum(ProductID, world.next_product_id);
+    }
 
     pub fn init() !World {
         const products = std.ArrayList(Product).init(allocator());
@@ -180,9 +186,11 @@ pub const World = struct {
         pushable_products.append(product) catch @panic("oom"); // we don't know if it's pushable
         // yet but until we have proven it isn't, we say it is
 
-        var iter_pos = PosIter.start(product.pos + direction, product.size);
+        var iter_pos = PosIter.start(product.pos, product.size);
         while(iter_pos.next()) |target_pos| {
-            const tile = world.getTile(target_pos) orelse continue;
+            const product_tile = product.getTile(target_pos);
+            if(product_tile.id == .air) continue;
+            const tile = world.getTile(target_pos + direction) orelse continue;
             if(tile.product.id == product.id) continue;
             if(world.validatePushProduct(tile.product, direction, pushable_products)) continue;
             return false;
@@ -192,25 +200,17 @@ pub const World = struct {
     }
 
     pub fn pushProduct(world: *World, product: *Product, direction: Vec3) bool {
-        // loop over all tiles in the object:
-        // - check what is at (pos + direction)
-        //   - if it has the same object id, ignore
-        //   - if it is an unseen product:
-        //     - add the product id to the push list
-
         var pushable_products = std.ArrayList(*Product).init(allocator());
         defer pushable_products.deinit();
         if(!world.validatePushProduct(product, direction, &pushable_products)) {
             return false; // push failed
         }
 
-        // ok basically we make a Set of Product IDs that are pushable
-        // if we ever find one that isn't, we cancel and return false
-        // if all are pushable, we loop over all the products and push them
-
-        product.moved_from = product.pos;
-        product.last_moved = world.physics_time;
-        product.pos += direction;
+        for(pushable_products.items) |psh_p| {
+            psh_p.moved_from = psh_p.pos;
+            psh_p.last_moved = world.physics_time;
+            psh_p.pos += direction;
+        }
 
         return true;
     }

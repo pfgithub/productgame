@@ -51,7 +51,7 @@ pub fn main2() !void {
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
         });
         const newproduct = game.Product{
-            .id = @intToEnum(game.ProductID, 1),
+            .id = world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
@@ -75,7 +75,7 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
-            .id = @intToEnum(game.ProductID, 2),
+            .id = world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
@@ -86,8 +86,8 @@ pub fn main2() !void {
     }
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
-            t_air, t_air, t_air, t_air, t_air,
-            t_air, t_air, t_block, t_block, t_air,
+            t_air, t_air, t_air, t_air, t_block,
+            t_air, t_air, t_block, t_block, t_block,
             t_air, t_air, t_block, t_block, t_air,
             t_air, t_air, t_block, t_air, t_air,
             t_air, t_air, t_air, t_air, t_air,
@@ -99,12 +99,30 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
-            .id = @intToEnum(game.ProductID, 3),
+            .id = world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = game.Vec3{6, 7, 2},
             .size = game.Vec3{5, 5, 2},
+        };
+        try world.products.append(newproduct);
+    }
+    {
+        const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
+            t_block, t_block,
+
+            t_block, t_air,
+            t_block, t_air,
+            t_block, t_air,
+        });
+        const newproduct = game.Product{
+            .id = world.nextProductId(),
+            // MxN array of tiles
+            .tiles = newproduct_tiles,
+            .tiles_updated = 1,
+            .pos = game.Vec3{9, 6, 0},
+            .size = game.Vec3{2, 1, 4},
         };
         try world.products.append(newproduct);
     }
