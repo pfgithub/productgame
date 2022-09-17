@@ -52,6 +52,8 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
         // maybe I want these parabolas
         // and then if the side has a tile, cut off that side of the parabola
 
+        // if we do position from -1 to 1, the equation is (x^2)+1 instead of 4x(1-x)
+
         float x = position.x;
         float y = position.y;
         float xpb = (4 * x * (1 - x));
