@@ -196,9 +196,6 @@ pub fn main2() !void {
             // }
         }
 
-        if(platform.mouse_captured) {
-            std.log.info("under mouse: {d}", .{renderer.screenToWorld(game.Vec2f{0.0, 0.0}, 0.0)});
-        }
         try renderer.renderFrame(curr_timestamp);
 
         platform.present();

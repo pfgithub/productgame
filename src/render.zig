@@ -403,6 +403,8 @@ pub const Renderer = struct {
         }
 
         const under_cursor = renderer.screenToWorld(game.Vec2f{0.0, 0.0}, -1.0);
+        // so I guess we can get the object under the cursor and then use that to determine the id based 
+        // on our data here
 
         // 2. update data buffer header
         const header_data: []const u8 = &[header_len * 4]u8{
@@ -416,7 +418,7 @@ pub const Renderer = struct {
             std.math.lossyCast(u8, under_cursor[game.z] - 5.0),
             0,
             // t_id
-            0, 0, 0, 4,
+            0, 0, 0, if(renderer.platform.mouse_captured) 4 else 0,
         };
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
