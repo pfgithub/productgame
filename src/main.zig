@@ -127,6 +127,11 @@ pub fn main2() !void {
         try world.products.append(newproduct);
     }
 
+    // we should seperate View from Renderer
+    // - Game is the game state
+    // - View views the game state for the current client
+    // - Render renders the game in the current view
+    // or something
     var renderer = try render.Renderer.init(&platform, &world);
 
     var fullscreen = false;
