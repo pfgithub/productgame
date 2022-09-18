@@ -10,7 +10,7 @@ const log = std.log.scoped(.platform);
 pub const Platform = struct {
     window: *c.SDL_Window,
 
-    window_size: game.Vec2,
+    window_size: game.Vec2i,
     mouse_captured: bool = false,
     capture_enterpos: game.Vec2f = game.Vec2f{0, 0},
 
@@ -39,7 +39,7 @@ pub const Platform = struct {
             try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLESAMPLES, 16));
         }
 
-        var window_size = game.Vec2{1920 / 2, 1080 / 2};
+        var window_size = game.Vec2i{1920 / 2, 1080 / 2};
         const window: *c.SDL_Window = c.SDL_CreateWindow(
             "Productgame",
             c.SDL_WINDOWPOS_CENTERED,
@@ -86,7 +86,7 @@ pub const Platform = struct {
 
         if(event.type == c.SDL_WINDOWEVENT) {
             if(event.window.event == c.SDL_WINDOWEVENT_RESIZED) {
-                platform.window_size = game.Vec2{
+                platform.window_size = game.Vec2i{
                     event.window.data1,
                     event.window.data2,
                 };

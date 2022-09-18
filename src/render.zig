@@ -10,8 +10,8 @@ const log = std.log.scoped(.render);
 
 const Vec2f = game.Vec2f;
 const Vec3f = game.Vec3f;
-const Vec2i = game.Vec2;
-const Vec3i = game.Vec3;
+const Vec2i = game.Vec2i;
+const Vec3i = game.Vec3i;
 
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb

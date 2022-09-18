@@ -55,8 +55,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3{5, 5, -1},
-            .size = game.Vec3{10, 10, 1},
+            .pos = game.Vec3i{5, 5, -1},
+            .size = game.Vec3i{10, 10, 1},
             .fixed = true,
         };
         try world.products.append(newproduct);
@@ -79,8 +79,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3{5, 5, 0},
-            .size = game.Vec3{10, 10, 1},
+            .pos = game.Vec3i{5, 5, 0},
+            .size = game.Vec3i{10, 10, 1},
         };
         try world.products.append(newproduct);
     }
@@ -103,8 +103,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3{6, 7, 2},
-            .size = game.Vec3{5, 5, 2},
+            .pos = game.Vec3i{6, 7, 2},
+            .size = game.Vec3i{5, 5, 2},
         };
         try world.products.append(newproduct);
     }
@@ -121,8 +121,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3{9, 6, 0},
-            .size = game.Vec3{2, 1, 4},
+            .pos = game.Vec3i{9, 6, 0},
+            .size = game.Vec3i{2, 1, 4},
         };
         try world.products.append(newproduct);
     }
