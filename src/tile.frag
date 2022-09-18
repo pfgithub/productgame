@@ -77,8 +77,26 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
         if(surrounding[7].x != TILE_air) {
             if(y > 0.5) ypb = ymin;
         }
+        if(surrounding[0].x == TILE_air && surrounding[1] != TILE_air && surrounding[3] != TILE_air) {
+            if(x < 0.5 && y < 0.5) {
+                xpb = max(xmax * ymin, ymax * xmin);
+                ypb = 1.0;
+            }
+        }
+        if(surrounding[2].x == TILE_air && surrounding[1] != TILE_air && surrounding[5] != TILE_air) {
+            if(x > 0.5 && y < 0.5) {
+                xpb = max(xmax * ymin, ymax * xmin);
+                ypb = 1.0;
+            }
+        }
+        if(surrounding[6].x == TILE_air && surrounding[7] != TILE_air && surrounding[3] != TILE_air) {
+            if(x < 0.5 && y > 0.5) {
+                xpb = max(xmax * ymin, ymax * xmin);
+                ypb = 1.0;
+            }
+        }
         if(surrounding[8].x == TILE_air && surrounding[7] != TILE_air && surrounding[5] != TILE_air) {
-            if(x > 0.5 && y >= 0.5) {
+            if(x > 0.5 && y > 0.5) {
                 xpb = max(xmax * ymin, ymax * xmin);
                 ypb = 1.0;
             }
