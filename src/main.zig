@@ -172,11 +172,16 @@ pub fn main2() !void {
                 }
             }else if(event.type == c.SDL_QUIT) {
                 break :app;
+            }else if(event.type == c.SDL_MOUSEWHEEL) {
+                if(event.wheel.preciseY > 0) {
+                    renderer.camera_scale *= 2.0;
+                    renderer.camera_pos *= @splat(2, @as(f32, 2.0));
+                }else{
+                    renderer.camera_scale /= 2.0;
+                    renderer.camera_pos /= @splat(2, @as(f32, 2.0));
+                }
+                std.log.info("mwheel {d} {d}", .{event.wheel.preciseX, event.wheel.preciseY});
             }
-
-            // if(event.type == c.SDL_MOUSEWHEEL) {
-            //     std.log.info("mwheel {d} {d}", .{event.wheel.preciseX, event.wheel.preciseY});
-            // }
             // if(event.type == c.SDL_MULTIGESTURE) {
             //     // rotation: dTheta, zoom: dDist
             //     // it doesn't include scroll
