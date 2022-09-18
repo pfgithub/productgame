@@ -136,7 +136,7 @@ int uvec4ToInt(uvec4 a) {
 void main() {
     float progress = float(getMem(1).r) / 255.0;
     ivec3 targeted_block_pos = ivec3(getMem(2).xyz);
-    int targeted_block_id = uvec4ToInt(getMem(2));
+    int targeted_block_id = uvec4ToInt(getMem(3));
 
     uvec4 header = getMem(v_tile_data_ptr);
     ivec3 size = ivec3(header.xyz);

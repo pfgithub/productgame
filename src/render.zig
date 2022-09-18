@@ -401,16 +401,22 @@ pub const Renderer = struct {
         for(renderer.world.products.items) |product| {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
+
+        const under_cursor = renderer.screenToWorld(game.Vec2f{0.0, 0.0}, -1.0);
+
         // 2. update data buffer header
         const header_data: []const u8 = &[header_len * 4]u8{
             // unused
             0, 0, 0, 0,
             // progress
             std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
-            // t_x, t_y, t_z, FLAGS :: is_ghost: bool
-            0, 0, 0, 0,
+            // t_x, t_y, t_z, FLAGS
+            std.math.lossyCast(u8, under_cursor[game.x] - 5.0),
+            std.math.lossyCast(u8, under_cursor[game.y] - 5.0),
+            std.math.lossyCast(u8, under_cursor[game.z] - 5.0),
+            0,
             // t_id
-            0, 0, 0, 0,
+            0, 0, 0, 4,
         };
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
