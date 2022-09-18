@@ -56,19 +56,32 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
 
         float x = position.x;
         float y = position.y;
-        float xpb = (4 * x * (1 - x));
-        float ypb = (4 * y * (1 - y));
+
+        float xmax = (4 * x * (1 - x));
+        float xmin = (xmax / 3.0) + (2.0 / 3.0);
+        float xpb = xmax;
+
+        float ymax = (4 * y * (1 - y));
+        float ymin = (ymax / 3.0) + (2.0 / 3.0);
+        float ypb = ymax;
+
         if(surrounding[1].x != TILE_air) {
-            if(y < 0.5) ypb = (ypb / 3.0) + (2.0/3.0);
+            if(y < 0.5) ypb = ymin;
         }
         if(surrounding[3].x != TILE_air) {
-            if(x < 0.5) xpb = (xpb / 3.0) + (2.0/3.0);
+            if(x < 0.5) xpb = xmin;
         }
         if(surrounding[5].x != TILE_air) {
-            if(x > 0.5) xpb = (xpb / 3.0) + (2.0/3.0);
+            if(x > 0.5) xpb = xmin;
         }
         if(surrounding[7].x != TILE_air) {
-            if(y > 0.5) ypb = (ypb / 3.0) + (2.0/3.0);
+            if(y > 0.5) ypb = ymin;
+        }
+        if(surrounding[8].x == TILE_air && surrounding[7] != TILE_air && surrounding[5] != TILE_air) {
+            if(x > 0.5 && y >= 0.5) {
+                xpb = max(xmax * ymin, ymax * xmin);
+                ypb = 1.0;
+            }
         }
         vec3 color = vec3(1.0, 1.0, 1.0);
         color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
