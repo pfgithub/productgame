@@ -287,6 +287,30 @@ pub const Renderer = struct {
         try renderer.renderWorld();
     }
 
+    // the opposite of worldToScreen
+    // screen space is [-1..1], world space is tile coordinates
+    pub fn screenToWorld(renderer: *Renderer, screen_space: game.Vec2f, height: f32) game.Vec3f {
+        var res = screen_space;
+        res -= renderer.camera_pos;
+        const ratio = @intToFloat(f32, renderer.platform.window_size[game.x]) / @intToFloat(f32, renderer.platform.window_size[game.y]);
+        if(ratio > 1.0) {
+            res[game.x] /= 1 / ratio;
+        }else{
+            res[game.y] /= ratio;
+        }
+        res = game.Vec2f{
+            res[game.x] / renderer.camera_scale,
+            -res[game.y] / renderer.camera_scale,
+        };
+        const yoffset: f32 = -height * 0.2;
+        res[game.y] -= yoffset;
+        return game.Vec3f{
+            res[game.x],
+            res[game.y],
+            height,
+        };
+    }
+
     pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3f) game.Vec2f {
         var res = game.Vec2f{
             world_space[game.x],
