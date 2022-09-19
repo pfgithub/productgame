@@ -20,12 +20,6 @@ const z = math.z;
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
-
-// offset: @offsetOf(i_position)
-// offset: @offsetOf(i_tile_position)
-// offset: @offsetOf(i_tile_data_ptr)
-// stride: @sizeOf
-
 // strgen:
 fn attribTypeStr(comptime a: type) []const u8 {
     if(a == [3]c.GLfloat) return "vec3";
@@ -396,6 +390,9 @@ pub const Renderer = struct {
                 @intToFloat(c.GLfloat, z_layer),
                 @intCast(c.GLuint, result_ptr_idx),
             ));
+        }
+        if((result_ptr_idx * 4 + res_byte_data.items.len) / 4 >= max_tiles) {
+            @panic("too many tiles");
         }
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
