@@ -201,9 +201,9 @@ void main() {
         // float val = map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
         // o_color = blend(vec4(0.0, 0.0, 1.0, val), o_color);
     }
-    if(o_color.a < 0.99 && tilepos.y < 0.2) {
+    if(o_color.a < 0.99 && tilepos.y < CONST_height) {
         uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
-        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / 0.2));
+        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / CONST_height));
         o_color = blend(o_color, vec4(ncol.xyz * 0.3, ncol.a));
     }
     if(o_color.a < 0.99) {
