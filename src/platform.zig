@@ -17,6 +17,13 @@ pub const Platform = struct {
     capture_enterpos: game.Vec2f = game.Vec2f{0, 0},
 
     pub fn init() !Platform {
+        var runtime_version: c.SDL_version = undefined;
+        c.SDL_GetVersion(&runtime_version);
+        log.info("sdl ver: {d}.{d}.{d} (compiled for {d}.{d}.{d})", .{
+            runtime_version.major, runtime_version.minor, runtime_version.patch,
+            c.SDL_MAJOR_VERSION, c.SDL_MINOR_VERSION, c.SDL_PATCHLEVEL,
+        });
+
         try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
 
         // - for mac trackpad gestures
