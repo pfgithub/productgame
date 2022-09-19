@@ -434,17 +434,19 @@ pub const Renderer = struct {
         // on our data here
 
         // 2. add the ui layer
-        var xsq: c.GLfloat = 1.0;
-        var ysq: c.GLfloat = 1.0;
-        const ratio = @intToFloat(c.GLfloat, renderer.platform.window_size[x]) / @intToFloat(c.GLfloat, renderer.platform.window_size[y]);
-        if(ratio > 1.0) {
-            xsq *= ratio;
-        }else{
-            ysq *= 1 / ratio;
+        if(renderer.platform.mouse_captured) {
+            var xsq: c.GLfloat = 1.0;
+            var ysq: c.GLfloat = 1.0;
+            const ratio = @intToFloat(c.GLfloat, renderer.platform.window_size[x]) / @intToFloat(c.GLfloat, renderer.platform.window_size[y]);
+            if(ratio > 1.0) {
+                xsq *= ratio;
+            }else{
+                ysq *= 1 / ratio;
+            }
+            try final_rectangles.appendSlice(&rectVertices(
+                .{-1, -1}, .{1, 1}, -0x0.FFF, .{-xsq, -ysq}, .{xsq, ysq}, 0, 0,
+            ));
         }
-        try final_rectangles.appendSlice(&rectVertices(
-            .{-1, -1}, .{1, 1}, -0x0.FFF, .{-xsq, -ysq}, .{xsq, ysq}, 0, 0,
-        ));
 
         // 3. update data buffer header
         const header_data: []const u8 = &[header_len * 4]u8{
