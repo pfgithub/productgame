@@ -386,7 +386,7 @@ pub const Renderer = struct {
                 vec2fToGlf(tile_screen_1),
                 pos_z,
                 vec2fToGlf(Vec2f{0, 0} - extra),
-                vec2fToGlf(Vec2f{@intToFloat(f64, product.size[x]), @intToFloat(f64, product.size[y])} + extra),
+                vec2fToGlf(math.ecast(f64, math.swizzle(product.size, .xy)) + extra),
                 @intToFloat(c.GLfloat, z_layer),
                 @intCast(c.GLuint, result_ptr_idx),
             ));
@@ -506,18 +506,12 @@ fn smoothstep(min: f64, max: f64, value: f64) f64 {
 }
 
 fn vec3iToF(a: Vec3i) Vec3f {
-    return Vec3f{
-        @intToFloat(f64, a[x]),
-        @intToFloat(f64, a[y]),
-        @intToFloat(f64, a[z]),
-    };
+    return math.ecast(f64, a);
 }
 fn vec2fToGlf(a: Vec2f) Vec2glf {
-    return Vec2glf{
-        @floatCast(c.GLfloat, a[x]),
-        @floatCast(c.GLfloat, a[y]),
-    };
+    return math.ecast(c.GLfloat, a);
 }
 // vecSwizzle(vec, anytype)
 // vecSwizzle(myvec, .xz) => vec2(vectype(myvec)){x, z}
-const Vec2glf = std.meta.Vector(2, c.GLfloat);
+pub const Vec2glf = math.Vec(2, c.GLfloat);
+pub const Vec3glf = math.Vec(3, c.GLfloat);
