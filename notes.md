@@ -1,3 +1,8 @@
+## interactions
+
+hold shift to change vertical layers. it multiplies your y mouse speed by 0.2, disables x mouse
+move, and adjusts the current layer rather than the mouse position
+
 ## notes
 
 consider:
