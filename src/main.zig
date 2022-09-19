@@ -5,6 +5,11 @@ const render = @import("render.zig");
 const plat = @import("platform.zig");
 const c = sdl.c;
 const log = std.log.scoped(.main);
+const math = @import("math.zig");
+
+const x = math.x;
+const y = math.y;
+const z = math.z;
 
 // https://www.khronos.org/opengl/wiki/Buffer_Texture
 
@@ -78,8 +83,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3i{5, 5, -1},
-            .size = game.Vec3i{10, 10, 3},
+            .pos = math.Vec3i{5, 5, -1},
+            .size = math.Vec3i{10, 10, 3},
             .fixed = true,
         };
         try world.products.append(newproduct);
@@ -103,8 +108,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3i{6, 7, 2},
-            .size = game.Vec3i{5, 5, 2},
+            .pos = math.Vec3i{6, 7, 2},
+            .size = math.Vec3i{5, 5, 2},
         };
         try world.products.append(newproduct);
     }
@@ -121,8 +126,8 @@ pub fn main2() !void {
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3i{9, 6, 0},
-            .size = game.Vec3i{2, 1, 4},
+            .pos = math.Vec3i{9, 6, 0},
+            .size = math.Vec3i{2, 1, 4},
         };
         try world.products.append(newproduct);
     }
@@ -148,8 +153,8 @@ pub fn main2() !void {
             if(event.type == c.SDL_MOUSEBUTTONDOWN) {
                 try platform.startCaptureMouse();
             }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
-                const minsz = @intToFloat(f64, std.math.min(platform.window_size[game.x], platform.window_size[game.y]));
-                renderer.camera_pos += game.Vec2f{
+                const minsz = @intToFloat(f64, std.math.min(platform.window_size[x], platform.window_size[y]));
+                renderer.camera_pos += math.Vec2f{
                     -@intToFloat(f64, event.motion.xrel) / minsz,
                     @intToFloat(f64, event.motion.yrel) / minsz,
                 };

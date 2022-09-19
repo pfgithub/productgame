@@ -5,17 +5,18 @@ const allocator = @import("main.zig").allocator;
 const sdl = @import("sdl.zig");
 const plat = @import("platform.zig");
 const game = @import("game.zig");
+const math = @import("math.zig");
 const c = sdl.c;
 const log = std.log.scoped(.render);
 
-const Vec2f = game.Vec2f;
-const Vec3f = game.Vec3f;
-const Vec2i = game.Vec2i;
-const Vec3i = game.Vec3i;
+const Vec2f = math.Vec2f;
+const Vec3f = math.Vec3f;
+const Vec2i = math.Vec2i;
+const Vec3i = math.Vec3i;
 
-const x = game.x;
-const y = game.y;
-const z = game.z;
+const x = math.x;
+const y = math.y;
+const z = math.z;
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
@@ -311,7 +312,7 @@ pub const Renderer = struct {
 
     // the opposite of worldToScreen
     // screen space is [-1..1], world space is tile coordinates
-    pub fn screenToWorld(renderer: *Renderer, screen_space: game.Vec2f, height: f64) game.Vec3f {
+    pub fn screenToWorld(renderer: *Renderer, screen_space: Vec2f, height: f64) Vec3f {
         var res = screen_space;
         res -= renderer.camera_pos;
         const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
@@ -320,27 +321,27 @@ pub const Renderer = struct {
         }else{
             res[y] /= ratio;
         }
-        res = game.Vec2f{
+        res = Vec2f{
             res[x] / renderer.camera_scale(),
             -res[y] / renderer.camera_scale(),
         };
         const yoffset: f64 = -height * tile_height;
         res[y] -= yoffset;
-        return game.Vec3f{
+        return Vec3f{
             res[x],
             res[y],
             height,
         };
     }
 
-    pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3f) game.Vec2f {
-        var res = game.Vec2f{
+    pub fn worldToScreen(renderer: *Renderer, world_space: Vec3f) Vec2f {
+        var res = Vec2f{
             world_space[x],
             world_space[y],
         };
         const yoffset: f64 = -world_space[z] * tile_height;
         res[y] += yoffset;
-        res = game.Vec2f{
+        res = Vec2f{
             res[x] * renderer.camera_scale(),
             -res[y] * renderer.camera_scale(),
         };
@@ -428,7 +429,7 @@ pub const Renderer = struct {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
 
-        const under_cursor = renderer.screenToWorld(game.Vec2f{0.0, 0.0}, -1.0);
+        const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, -1.0);
         // so I guess we can get the object under the cursor and then use that to determine the id based 
         // on our data here
 

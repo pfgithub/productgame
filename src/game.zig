@@ -1,14 +1,15 @@
 const std = @import("std");
 const allocator = @import("main.zig").allocator;
+const math = @import("math.zig");
 const log = std.log.scoped(.game);
 
-pub const x = 0;
-pub const y = 1;
-pub const z = 2;
-pub const Vec2i = std.meta.Vector(2, i32);
-pub const Vec3i = std.meta.Vector(3, i32);
-pub const Vec2f = std.meta.Vector(2, f64);
-pub const Vec3f = std.meta.Vector(3, f64);
+const x = math.x;
+const y = math.y;
+const z = math.z;
+const Vec2i = math.Vec2i;
+const Vec3i = math.Vec3i;
+const Vec2f = math.Vec2f;
+const Vec3f = math.Vec3f;
 
 pub fn pointInRect(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) bool {
     return !(@reduce(.Or, point < rect_pos) or @reduce(.Or, point >= rect_pos + rect_size));
