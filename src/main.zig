@@ -157,18 +157,18 @@ pub fn main2() !void {
             }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
                 const mod_state = c.SDL_GetModState();
                 const shift_down = (mod_state & c.KMOD_LSHIFT != 0) or (mod_state & c.KMOD_RSHIFT != 0);
+                // we want to move based on the current scale
                 const minsz = @intToFloat(f64, std.math.min(platform.window_size[x], platform.window_size[y]));
                 const vec = math.Vec2f{
-                    -@intToFloat(f64, event.motion.xrel) / minsz,
-                    @intToFloat(f64, event.motion.yrel) / minsz,
+                    @intToFloat(f64, event.motion.xrel) / minsz * 2 / renderer.camera_scale(),
+                    @intToFloat(f64, event.motion.yrel) / minsz * 2 / renderer.camera_scale(),
                 };
                 if(shift_down) {
-                    // oh. camera_height is in tile coordinates but camera_pos is in screen coordinates
-                    // weird
-                    renderer.camera_height -= vec[math.y] / 0.2;
-                    std.log.info("cam height: {d}", .{renderer.camera_height});
+                    renderer.camera_pos[math.z] -= vec[math.y] / render.tile_height * render.tile_height;
+                    // "/ 0.2" if you want it to be 1:1 mouse pixel to screen pixel
+                    // excluding that, it is 1:5 mouse pixel to screen pixel
                 }else{
-                    renderer.camera_pos += vec;
+                    renderer.camera_pos += math.join(f64, .{vec, 0.0});
                 }
             }else if(event.type == c.SDL_KEYDOWN) {
                 switch(event.key.keysym.sym) {
@@ -195,14 +195,12 @@ pub fn main2() !void {
             }else if(event.type == c.SDL_QUIT) {
                 break :app;
             }else if(event.type == c.SDL_MOUSEWHEEL) {
-                const prev_scale = renderer.camera_scale();
-                renderer.camera_scale_factor -= event.wheel.preciseY;
+                renderer.camera_scale_factor += event.wheel.preciseY;
+                // ^ why is it backwards on mac?
                 // max zoom in: 22
                 // max zoom out: -13
                 if(renderer.camera_scale_factor > 22) renderer.camera_scale_factor = 22;
                 if(renderer.camera_scale_factor < -13) renderer.camera_scale_factor = -13;
-                const next_scale = renderer.camera_scale();
-                renderer.camera_pos *= @splat(2, next_scale / prev_scale);
                 std.log.info("mwheel {d}", .{renderer.camera_scale_factor});
             }
             // if(event.type == c.SDL_MULTIGESTURE) {

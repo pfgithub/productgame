@@ -180,8 +180,7 @@ pub const Renderer = struct {
     frame_start_timestamp: f64 = 0,
     frame_start_id: usize = 1,
 
-    camera_height: f64 = -1.0,
-    camera_pos: Vec2f = Vec2f{0.0, 0.0},
+    camera_pos: Vec3f = Vec3f{0.0, 0.0, -1.0},
     camera_scale_factor: f64 = 0.0,
 
     // TODO: preserve the buffer across frames and only update what is needed.
@@ -307,26 +306,28 @@ pub const Renderer = struct {
     // the opposite of worldToScreen
     // screen space is [-1..1], world space is tile coordinates
     pub fn screenToWorld(renderer: *Renderer, screen_space: Vec2f, offset_height: f64) Vec3f {
-        const height = renderer.camera_height + offset_height;
-        var res = screen_space;
-        res -= renderer.camera_pos;
-        const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
-        if(ratio > 1.0) {
-            res[x] /= 1 / ratio;
-        }else{
-            res[y] /= ratio;
-        }
-        res = Vec2f{
-            res[x] / renderer.camera_scale(),
-            -res[y] / renderer.camera_scale(),
-        };
-        const yoffset: f64 = -height * tile_height;
-        res[y] -= yoffset;
-        return Vec3f{
-            res[x],
-            res[y],
-            height,
-        };
+        if(screen_space[x] != 0 or screen_space[y] != 0 or offset_height != 0) @panic("TODO");
+        return renderer.camera_pos;
+        // var res = screen_space;
+        // const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
+        // if(ratio > 1.0) {
+        //     res[x] /= 1 / ratio;
+        // }else{
+        //     res[y] /= ratio;
+        // }
+        // res = Vec2f{
+        //     res[x] / renderer.camera_scale(),
+        //     -res[y] / renderer.camera_scale(),
+        // };
+        // res -= math.swizzle(renderer.camera_pos, .xy);
+        // const height = renderer.camera_pos[z] + offset_height;
+        // const yoffset: f64 = -height * tile_height;
+        // res[y] -= yoffset;
+        // return Vec3f{
+        //     res[x],
+        //     res[y],
+        //     height,
+        // };
     }
 
     pub fn worldToScreen(renderer: *Renderer, world_space: Vec3f) Vec2f {
@@ -334,20 +335,19 @@ pub const Renderer = struct {
             world_space[x],
             world_space[y],
         };
-        const yoffset: f64 = -(world_space[z] - renderer.camera_height) * tile_height;
+        res -= math.swizzle(renderer.camera_pos, .xy);
+        const yoffset: f64 = -(world_space[z] - renderer.camera_pos[z]) * tile_height;
         res[y] += yoffset;
         res = Vec2f{
             res[x] * renderer.camera_scale(),
             -res[y] * renderer.camera_scale(),
         };
-        // res += renderer.camera_pos;
         const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
         if(ratio > 1.0) {
             res[x] *= 1 / ratio;
         }else{
             res[y] *= ratio;
         }
-        res += renderer.camera_pos;
         return res;
     }
 
