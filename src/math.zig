@@ -64,6 +64,38 @@ pub fn swizzle(value: anytype, comptime tag: EnumLiteral) SwizzleRet(@TypeOf(val
     }
     return res;
 }
+// join(f64, .{0, 0, 0})
+// join(f64, .{vec2f(), 0})
+pub fn JoinResultType(comptime Type: type, comptime Value: anytype) type {
+    var total: usize = 0;
+    for(std.meta.fields(Value)) |field| {
+        const tyi = @typeInfo(field.field_type);
+        if(tyi == .Vector) {
+            total += tyi.Vector.len;
+        }else{
+            total += 1;
+        }
+    }
+    return Vec(total, Type);
+}
+pub fn join(comptime Type: type, value: anytype) JoinResultType(Type, @TypeOf(value)) {
+    var res: JoinResultType(Type, @TypeOf(value)) = undefined;
+    comptime var i: usize = 0;
+    inline for(value) |v| {
+        const tyi = @typeInfo(@TypeOf(v));
+        if(tyi == .Vector) {
+            comptime var vec_i: usize = 0;
+            inline while(vec_i < tyi.Vector.len) : (vec_i += 1) {
+                res[i] = v[vec_i];
+                i += 1;
+            }
+        }else{
+            res[i] = v;
+            i += 1;
+        }
+    }
+    return res;
+}
 
 pub const EnumLiteral = @Type(.EnumLiteral);
 
