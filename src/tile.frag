@@ -164,7 +164,22 @@ int uvec4ToInt(uvec4 a) {
     return (int(a.x) << 24) + (int(a.y) << 16) + (int(a.z) << 8) + int(a.a);
 }
 
+vec4 ui(vec2 pos) {
+    if(distance(vec2(0, 0), pos) <= 0.01) {
+        return vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    return vec4(0.0, 0.0, 0.0, 0.0);
+}
+
 void main() {
+    if(v_tile_data_ptr == 0) {
+        o_color = ui(v_tile_position.xy);
+        if(o_color.a < 0.99) {
+            discard;
+        }
+        return;
+    }
+
     float progress = float(getMem(1).r) / 255.0;
     ivec3 targeted_block_pos = ivec3(getMem(2).xyz);
     int targeted_block_id = uvec4ToInt(getMem(3));

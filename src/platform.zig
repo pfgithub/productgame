@@ -42,7 +42,8 @@ pub const Platform = struct {
         try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MINOR_VERSION, 2 ));
         try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_PROFILE_MASK, c.SDL_GL_CONTEXT_PROFILE_CORE ));
 
-        const multisample = true;
+        const multisample = @import("builtin").os.tag != .macos; // it's not working on mac for some reason?
+        // it slows the rendering down but doesn't display the multisampled output
         if(multisample) {
             try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLEBUFFERS, 1));
             try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLESAMPLES, 16));

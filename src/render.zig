@@ -13,6 +13,9 @@ const Vec3f = game.Vec3f;
 const Vec2i = game.Vec2i;
 const Vec3i = game.Vec3i;
 
+const x = game.x;
+const y = game.y;
+const z = game.z;
 
 pub const max_tiles = 65536; // 4 bytes per tile, 65536 tiles = 26kb
 
@@ -141,9 +144,11 @@ fn intStr(comptime int_: comptime_int) []const u8 {
 }
 const tile_ids_code = blk: {
     var res: []const u8 = "#line 0 4000\n";
+    // std.fmt.comptimePrint
     for(std.meta.tags(game.TileID)) |tile_id| {
         res = res ++ "#define TILE_" ++ @tagName(tile_id) ++ " " ++ intStr(@enumToInt(tile_id)) ++ "u\n";
     }
+    res = res ++ "#define CONST_height " ++ tile_height_str ++ "\n";
     break :blk res;
 };
 
@@ -160,6 +165,9 @@ pub const ProductRenderData = struct {
     buffer_pos: usize,
     buffer_size: usize,
 };
+
+pub const tile_height_str = "0.2";
+pub const tile_height: comptime_float = std.fmt.parseFloat(f128, tile_height_str) catch unreachable;
 
 pub const Renderer = struct {
     platform: *plat.Platform,
@@ -294,7 +302,7 @@ pub const Renderer = struct {
     pub fn renderFrame(renderer: *Renderer, timestamp: f64) !void {
         renderer.timestamp = timestamp;
 
-        try sdl.gewrap(c.glViewport(0, 0, renderer.platform.window_size[game.x], renderer.platform.window_size[game.y]));
+        try sdl.gewrap(c.glViewport(0, 0, renderer.platform.window_size[x], renderer.platform.window_size[y]));
         try sdl.gewrap(c.glClearColor(1.0, 0.0, 1.0, 0.0));
         try sdl.gewrap(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT));
 
@@ -306,42 +314,42 @@ pub const Renderer = struct {
     pub fn screenToWorld(renderer: *Renderer, screen_space: game.Vec2f, height: f64) game.Vec3f {
         var res = screen_space;
         res -= renderer.camera_pos;
-        const ratio = @intToFloat(f64, renderer.platform.window_size[game.x]) / @intToFloat(f64, renderer.platform.window_size[game.y]);
+        const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
         if(ratio > 1.0) {
-            res[game.x] /= 1 / ratio;
+            res[x] /= 1 / ratio;
         }else{
-            res[game.y] /= ratio;
+            res[y] /= ratio;
         }
         res = game.Vec2f{
-            res[game.x] / renderer.camera_scale(),
-            -res[game.y] / renderer.camera_scale(),
+            res[x] / renderer.camera_scale(),
+            -res[y] / renderer.camera_scale(),
         };
-        const yoffset: f64 = -height * 0.2;
-        res[game.y] -= yoffset;
+        const yoffset: f64 = -height * tile_height;
+        res[y] -= yoffset;
         return game.Vec3f{
-            res[game.x],
-            res[game.y],
+            res[x],
+            res[y],
             height,
         };
     }
 
     pub fn worldToScreen(renderer: *Renderer, world_space: game.Vec3f) game.Vec2f {
         var res = game.Vec2f{
-            world_space[game.x],
-            world_space[game.y],
+            world_space[x],
+            world_space[y],
         };
-        const yoffset: f64 = -world_space[game.z] * 0.2;
-        res[game.y] += yoffset;
+        const yoffset: f64 = -world_space[z] * tile_height;
+        res[y] += yoffset;
         res = game.Vec2f{
-            res[game.x] * renderer.camera_scale(),
-            -res[game.y] * renderer.camera_scale(),
+            res[x] * renderer.camera_scale(),
+            -res[y] * renderer.camera_scale(),
         };
         // res += renderer.camera_pos;
-        const ratio = @intToFloat(f64, renderer.platform.window_size[game.x]) / @intToFloat(f64, renderer.platform.window_size[game.y]);
+        const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
         if(ratio > 1.0) {
-            res[game.x] *= 1 / ratio;
+            res[x] *= 1 / ratio;
         }else{
-            res[game.y] *= ratio;
+            res[y] *= ratio;
         }
         res += renderer.camera_pos;
         return res;
@@ -355,9 +363,9 @@ pub const Renderer = struct {
 
         try res_byte_data.appendSlice(&[_]u8{
             // width, height, depth, unused
-            @intCast(u8, product.size[game.x]),
-            @intCast(u8, product.size[game.y]),
-            @intCast(u8, product.size[game.z]),
+            @intCast(u8, product.size[x]),
+            @intCast(u8, product.size[y]),
+            @intCast(u8, product.size[z]),
             0,
         });
 
@@ -370,31 +378,23 @@ pub const Renderer = struct {
             });
         }
         var z_layer: i32 = 0;
-        while(z_layer < product.size[game.z]) : (z_layer += 1) {
+        while(z_layer < product.size[z]) : (z_layer += 1) {
             const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
             const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[game.x], product.size[game.y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[x], product.size[y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
             // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
-            const tile_x0: c.GLfloat = @floatCast(c.GLfloat, tile_screen_0[game.x]);
-            const tile_x1: c.GLfloat = @floatCast(c.GLfloat, tile_screen_1[game.x]);
-            const tile_y0: c.GLfloat = @floatCast(c.GLfloat, tile_screen_0[game.y]);
-            const tile_y1: c.GLfloat = @floatCast(c.GLfloat, tile_screen_1[game.y]);
-            const tile_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[game.z] + z_layer) / 100.0);
-            const tile_data_x0: c.GLfloat = -1;
-            const tile_data_x1: c.GLfloat = @intToFloat(c.GLfloat, product.size[game.x]) + 1;
-            const tile_data_y0: c.GLfloat = -1;
-            const tile_data_y1: c.GLfloat = @intToFloat(c.GLfloat, product.size[game.y]) + 1;
-            const tile_data_z0: c.GLfloat = @intToFloat(c.GLfloat, z_layer);
-            const tile_data_ptr: c.GLuint = @intCast(c.GLuint, result_ptr_idx);
-            try final_rectangles.appendSlice(&[_]TileShader.Vertex{
-                .{.i_position = [_]c.GLfloat{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]c.GLfloat{tile_x1, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]c.GLfloat{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]c.GLfloat{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]c.GLfloat{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]c.GLfloat{tile_x0, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-            });
+            const pos_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[z] + z_layer) / 100.0);
+            const extra = Vec2f{1, 1};
+            try final_rectangles.appendSlice(&rectVertices(
+                vec2fToGlf(tile_screen_0),
+                vec2fToGlf(tile_screen_1),
+                pos_z,
+                vec2fToGlf(Vec2f{0, 0} - extra),
+                vec2fToGlf(Vec2f{@intToFloat(f64, product.size[x]), @intToFloat(f64, product.size[y])} + extra),
+                @intToFloat(c.GLfloat, z_layer),
+                @intCast(c.GLuint, result_ptr_idx),
+            ));
         }
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
@@ -403,6 +403,17 @@ pub const Renderer = struct {
             res_byte_data.items.ptr,
         ));
         renderer.temp_this_frame_bufidx += res_byte_data.items.len / 4;
+    }
+
+    fn rectVertices(pos_ul: Vec2glf, pos_br: Vec2glf, pos_z: c.GLfloat, tile_ul: Vec2glf, tile_br: Vec2glf, tile_z: c.GLfloat, dptr: c.GLuint) [6]TileShader.Vertex {
+        return [6]TileShader.Vertex{
+            .{.i_position = [_]c.GLfloat{pos_ul[x], pos_ul[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_ul[x], tile_ul[y], tile_z}, .i_tile_data_ptr = dptr},
+            .{.i_position = [_]c.GLfloat{pos_br[x], pos_ul[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_br[x], tile_ul[y], tile_z}, .i_tile_data_ptr = dptr},
+            .{.i_position = [_]c.GLfloat{pos_br[x], pos_br[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_br[x], tile_br[y], tile_z}, .i_tile_data_ptr = dptr},
+            .{.i_position = [_]c.GLfloat{pos_ul[x], pos_ul[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_ul[x], tile_ul[y], tile_z}, .i_tile_data_ptr = dptr},
+            .{.i_position = [_]c.GLfloat{pos_br[x], pos_br[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_br[x], tile_br[y], tile_z}, .i_tile_data_ptr = dptr},
+            .{.i_position = [_]c.GLfloat{pos_ul[x], pos_br[y], pos_z}, .i_tile_position = [_]c.GLfloat{tile_ul[x], tile_br[y], tile_z}, .i_tile_data_ptr = dptr},
+        };
     }
 
     pub fn updateBuffers(renderer: *Renderer, progress: f64) !void {
@@ -421,16 +432,29 @@ pub const Renderer = struct {
         // so I guess we can get the object under the cursor and then use that to determine the id based 
         // on our data here
 
-        // 2. update data buffer header
+        // 2. add the ui layer
+        var xsq: c.GLfloat = 1.0;
+        var ysq: c.GLfloat = 1.0;
+        const ratio = @intToFloat(c.GLfloat, renderer.platform.window_size[x]) / @intToFloat(c.GLfloat, renderer.platform.window_size[y]);
+        if(ratio > 1.0) {
+            xsq *= ratio;
+        }else{
+            ysq *= 1 / ratio;
+        }
+        try final_rectangles.appendSlice(&rectVertices(
+            .{-1, -1}, .{1, 1}, -0x0.FFF, .{-xsq, -ysq}, .{xsq, ysq}, 0, 0,
+        ));
+
+        // 3. update data buffer header
         const header_data: []const u8 = &[header_len * 4]u8{
             // unused
             0, 0, 0, 0,
             // progress
             std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
             // t_x, t_y, t_z, FLAGS
-            std.math.lossyCast(u8, under_cursor[game.x] - 5.0),
-            std.math.lossyCast(u8, under_cursor[game.y] - 5.0),
-            std.math.lossyCast(u8, under_cursor[game.z] - 5.0),
+            std.math.lossyCast(u8, under_cursor[x] - 5.0),
+            std.math.lossyCast(u8, under_cursor[y] - 5.0),
+            std.math.lossyCast(u8, under_cursor[z] - 5.0),
             0,
             // t_id
             0, 0, 0, if(renderer.platform.mouse_captured) 4 else 0,
@@ -444,7 +468,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glBindTexture(c.GL_TEXTURE_BUFFER, renderer.tiles_texture));
         try sdl.gewrap(c.glTexBuffer(c.GL_TEXTURE_BUFFER, c.GL_RGBA8UI, renderer.tiles_data_buffer));
 
-        // 3. update vertices
+        // 4. update vertices
         try sdl.gewrap(c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vertex_buffer));
         try sdl.gewrap(c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(c_long, @sizeOf(TileShader.Vertex) * final_rectangles.items.len), @ptrCast(?*const anyopaque, final_rectangles.items), c.GL_STATIC_DRAW));
         renderer.vertices = @intCast(c.GLint, final_rectangles.items.len);
@@ -472,8 +496,8 @@ fn interpolateVec3f(t: f64, a: Vec3f, b: Vec3f) Vec3f {
     return (b - a) * @splat(3, t) + a;
 }
 
-fn smoothstep(min: f64, max: f64, x: f64) f64 {
-    var v = (x - min) / (max - min);
+fn smoothstep(min: f64, max: f64, value: f64) f64 {
+    var v = (value - min) / (max - min);
     v = std.math.min(v, 1.0);
     v = std.math.max(v, 0.0);
     v = v * v * (3.0 - 2.0 * v);
@@ -483,8 +507,17 @@ fn smoothstep(min: f64, max: f64, x: f64) f64 {
 
 fn vec3iToF(a: Vec3i) Vec3f {
     return Vec3f{
-        @intToFloat(f64, a[game.x]),
-        @intToFloat(f64, a[game.y]),
-        @intToFloat(f64, a[game.z]),
+        @intToFloat(f64, a[x]),
+        @intToFloat(f64, a[y]),
+        @intToFloat(f64, a[z]),
     };
 }
+fn vec2fToGlf(a: Vec2f) Vec2glf {
+    return Vec2glf{
+        @floatCast(c.GLfloat, a[x]),
+        @floatCast(c.GLfloat, a[y]),
+    };
+}
+// vecSwizzle(vec, anytype)
+// vecSwizzle(myvec, .xz) => vec2(vectype(myvec)){x, z}
+const Vec2glf = std.meta.Vector(2, c.GLfloat);
