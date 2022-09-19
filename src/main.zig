@@ -36,6 +36,7 @@ pub fn main2() !void {
     const t_conveyor_a = game.Tile{.id = .conveyor, .data_1 = 1};
     const t_conveyor_d = game.Tile{.id = .conveyor, .data_1 = 2};
     const t_conveyor_s = game.Tile{.id = .conveyor, .data_1 = 3};
+    const t_spawner_d = game.Tile{.id = .spawner, .data_1 = 2};
     const t_air = game.Tile{.id = .air};
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
@@ -49,20 +50,7 @@ pub fn main2() !void {
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
             t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab, t_lab,
-        });
-        const newproduct = game.Product{
-            .id = world.nextProductId(),
-            // MxN array of tiles
-            .tiles = newproduct_tiles,
-            .tiles_updated = 1,
-            .pos = game.Vec3i{5, 5, -1},
-            .size = game.Vec3i{10, 10, 1},
-            .fixed = true,
-        };
-        try world.products.append(newproduct);
-    }
-    {
-        const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
+
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
             t_conveyor_s, t_conveyor_a, t_conveyor_a, t_conveyor_a, t_air, t_air, t_air, t_air, t_air, t_air,
             t_conveyor_s, t_air, t_air, t_conveyor_w, t_air, t_air, t_air, t_air, t_air, t_air,
@@ -72,15 +60,27 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_spawner_d, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_lab,
+
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air,
+            t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_lab,
         });
         const newproduct = game.Product{
             .id = world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
-            .pos = game.Vec3i{5, 5, 0},
-            .size = game.Vec3i{10, 10, 1},
+            .pos = game.Vec3i{5, 5, -1},
+            .size = game.Vec3i{10, 10, 3},
+            .fixed = true,
         };
         try world.products.append(newproduct);
     }

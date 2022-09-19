@@ -157,13 +157,35 @@ pub const World = struct {
 
         // ok idk let's just start. figure out edge cases later. that way we can start on ui and stuff
 
-        for(world.products.items) |*product| {
+        var i: usize = 0;
+        while(i < world.products.items.len) : (i += 1) {
+            var product = &world.products.items[i];
             var iter_pos = PosIter.start(product.pos, product.size);
             // hmm. this is having the conveyor move the object but it would probably be better for
             // the object to move itself
             while(iter_pos.next()) |target_pos| {
                 const tile = product.getTile(target_pos);
-                if(tile.id == .conveyor) {
+                if(tile.id == .spawner) {
+                    const tile_above = world.getTile(target_pos + Vec3i{0, 0, 1});
+                    if(tile_above == null) {
+                        // summon product
+                        const t_block = Tile{.id = .block};
+                        const newproduct_tiles = allocator().dupe(Tile, &[_]Tile{
+                            t_block,
+                        }) catch @panic("oom");
+                        const newproduct = Product{
+                            .id = world.nextProductId(),
+                            // MxN array of tiles
+                            .tiles = newproduct_tiles,
+                            .tiles_updated = 1,
+                            .pos = target_pos + Vec3i{0, 0, 1},
+                            .size = Vec3i{1, 1, 1},
+                        };
+                        world.products.append(newproduct) catch @panic("oom");
+                        product = &world.products.items[i];
+                    }
+                }
+                if(tile.id == .conveyor or tile.id == .spawner) {
                     const tile_above = world.getTile(target_pos + Vec3i{0, 0, 1}) orelse continue;
                     if(tile_above.product == product) continue;
                     if(tile_above.product.last_moved == world.physics_time) continue;
