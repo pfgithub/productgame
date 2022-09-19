@@ -377,7 +377,7 @@ pub const Renderer = struct {
         while(z_layer < product.size[z]) : (z_layer += 1) {
             const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, math.ecast(f64, product.moved_from), math.ecast(f64, product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
-            const tile_screen_0 = renderer.worldToScreen(pos_anim - @splat(3, @as(f64, 1.0)));
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
             const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, math.join(i32, .{math.swizzle(product.size, .xy), 0})) + Vec3f{1.0, 1.0, 0.0});
             // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
             const pos_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[z] + z_layer) / 100.0);
