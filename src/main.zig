@@ -151,13 +151,25 @@ pub fn main2() !void {
 
         while(platform.pollEvent()) |event| {
             if(event.type == c.SDL_MOUSEBUTTONDOWN) {
-                try platform.startCaptureMouse();
+                if(!platform.mouse_captured) {
+                    try platform.startCaptureMouse();
+                }
             }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
+                const mod_state = c.SDL_GetModState();
+                const shift_down = (mod_state & c.KMOD_LSHIFT != 0) or (mod_state & c.KMOD_RSHIFT != 0);
                 const minsz = @intToFloat(f64, std.math.min(platform.window_size[x], platform.window_size[y]));
-                renderer.camera_pos += math.Vec2f{
+                const vec = math.Vec2f{
                     -@intToFloat(f64, event.motion.xrel) / minsz,
                     @intToFloat(f64, event.motion.yrel) / minsz,
                 };
+                if(shift_down) {
+                    // oh. camera_height is in tile coordinates but camera_pos is in screen coordinates
+                    // weird
+                    renderer.camera_height -= vec[math.y] / 0.2;
+                    std.log.info("cam height: {d}", .{renderer.camera_height});
+                }else{
+                    renderer.camera_pos += vec;
+                }
             }else if(event.type == c.SDL_KEYDOWN) {
                 switch(event.key.keysym.sym) {
                     c.SDLK_ESCAPE => {

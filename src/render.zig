@@ -334,7 +334,7 @@ pub const Renderer = struct {
             world_space[x],
             world_space[y],
         };
-        const yoffset: f64 = -world_space[z] * tile_height;
+        const yoffset: f64 = -(world_space[z] - renderer.camera_height) * tile_height;
         res[y] += yoffset;
         res = Vec2f{
             res[x] * renderer.camera_scale(),
