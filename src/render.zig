@@ -180,7 +180,7 @@ pub const Renderer = struct {
     frame_start_timestamp: f64 = 0,
     frame_start_id: usize = 1,
 
-    camera_height: i32 = 0,
+    camera_height: f64 = -1.0,
     camera_pos: Vec2f = Vec2f{0.0, 0.0},
     camera_scale_factor: f64 = 0.0,
 
@@ -306,7 +306,8 @@ pub const Renderer = struct {
 
     // the opposite of worldToScreen
     // screen space is [-1..1], world space is tile coordinates
-    pub fn screenToWorld(renderer: *Renderer, screen_space: Vec2f, height: f64) Vec3f {
+    pub fn screenToWorld(renderer: *Renderer, screen_space: Vec2f, offset_height: f64) Vec3f {
+        const height = renderer.camera_height + offset_height;
         var res = screen_space;
         res -= renderer.camera_pos;
         const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
@@ -426,7 +427,7 @@ pub const Renderer = struct {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
 
-        const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, -1.0);
+        const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
         // so I guess we can get the object under the cursor and then use that to determine the id based 
         // on our data here
 
