@@ -64,15 +64,15 @@ pub const Platform = struct {
         var ep_y: i32 = 0;
         _ = c.SDL_GetMouseState(&ep_x, &ep_y);
         platform.capture_enterpos = game.Vec2f{
-            @intToFloat(f32, ep_x) / @intToFloat(f32, platform.window_size[game.x]),
-            @intToFloat(f32, ep_y) / @intToFloat(f32, platform.window_size[game.y]),
+            @intToFloat(f64, ep_x) / @intToFloat(f64, platform.window_size[game.x]),
+            @intToFloat(f64, ep_y) / @intToFloat(f64, platform.window_size[game.y]),
         };
     }
     pub fn stopCaptureMouse(platform: *Platform) !void {
         platform.mouse_captured = false;
         try sdl.sewrap(c.SDL_SetRelativeMouseMode(c.SDL_FALSE));
-        const tx: i32 = @floatToInt(i32, platform.capture_enterpos[game.x] * @intToFloat(f32, platform.window_size[game.x]));
-        const ty: i32 = @floatToInt(i32, platform.capture_enterpos[game.y] * @intToFloat(f32, platform.window_size[game.y]));
+        const tx: i32 = @floatToInt(i32, platform.capture_enterpos[game.x] * @intToFloat(f64, platform.window_size[game.x]));
+        const ty: i32 = @floatToInt(i32, platform.capture_enterpos[game.y] * @intToFloat(f64, platform.window_size[game.y]));
         c.SDL_WarpMouseInWindow(platform.window, tx, ty);
     }
 

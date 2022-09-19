@@ -148,10 +148,10 @@ pub fn main2() !void {
             if(event.type == c.SDL_MOUSEBUTTONDOWN) {
                 try platform.startCaptureMouse();
             }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
-                const minsz = @intToFloat(f32, std.math.min(platform.window_size[game.x], platform.window_size[game.y]));
+                const minsz = @intToFloat(f64, std.math.min(platform.window_size[game.x], platform.window_size[game.y]));
                 renderer.camera_pos += game.Vec2f{
-                    -@intToFloat(f32, event.motion.xrel) / minsz,
-                    @intToFloat(f32, event.motion.yrel) / minsz,
+                    -@intToFloat(f64, event.motion.xrel) / minsz,
+                    @intToFloat(f64, event.motion.yrel) / minsz,
                 };
             }else if(event.type == c.SDL_KEYDOWN) {
                 switch(event.key.keysym.sym) {
@@ -180,10 +180,10 @@ pub fn main2() !void {
             }else if(event.type == c.SDL_MOUSEWHEEL) {
                 if(event.wheel.preciseY > 0) {
                     renderer.camera_scale *= 2.0;
-                    renderer.camera_pos *= @splat(2, @as(f32, 2.0));
+                    renderer.camera_pos *= @splat(2, @as(f64, 2.0));
                 }else{
                     renderer.camera_scale /= 2.0;
-                    renderer.camera_pos /= @splat(2, @as(f32, 2.0));
+                    renderer.camera_pos /= @splat(2, @as(f64, 2.0));
                 }
                 std.log.info("mwheel {d} {d}", .{event.wheel.preciseX, event.wheel.preciseY});
             }

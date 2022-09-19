@@ -179,7 +179,7 @@ pub const Renderer = struct {
 
     camera_height: i32 = 0,
     camera_pos: Vec2f = Vec2f{0.0, 0.0},
-    camera_scale: f32 = 0.1,
+    camera_scale: f64 = 0.1,
 
     // TODO: preserve the buffer across frames and only update what is needed.
     // we have to use an allocator or something though.
@@ -289,10 +289,10 @@ pub const Renderer = struct {
 
     // the opposite of worldToScreen
     // screen space is [-1..1], world space is tile coordinates
-    pub fn screenToWorld(renderer: *Renderer, screen_space: game.Vec2f, height: f32) game.Vec3f {
+    pub fn screenToWorld(renderer: *Renderer, screen_space: game.Vec2f, height: f64) game.Vec3f {
         var res = screen_space;
         res -= renderer.camera_pos;
-        const ratio = @intToFloat(f32, renderer.platform.window_size[game.x]) / @intToFloat(f32, renderer.platform.window_size[game.y]);
+        const ratio = @intToFloat(f64, renderer.platform.window_size[game.x]) / @intToFloat(f64, renderer.platform.window_size[game.y]);
         if(ratio > 1.0) {
             res[game.x] /= 1 / ratio;
         }else{
@@ -302,7 +302,7 @@ pub const Renderer = struct {
             res[game.x] / renderer.camera_scale,
             -res[game.y] / renderer.camera_scale,
         };
-        const yoffset: f32 = -height * 0.2;
+        const yoffset: f64 = -height * 0.2;
         res[game.y] -= yoffset;
         return game.Vec3f{
             res[game.x],
@@ -316,14 +316,14 @@ pub const Renderer = struct {
             world_space[game.x],
             world_space[game.y],
         };
-        const yoffset: f32 = -world_space[game.z] * 0.2;
+        const yoffset: f64 = -world_space[game.z] * 0.2;
         res[game.y] += yoffset;
         res = game.Vec2f{
             res[game.x] * renderer.camera_scale,
             -res[game.y] * renderer.camera_scale,
         };
         // res += renderer.camera_pos;
-        const ratio = @intToFloat(f32, renderer.platform.window_size[game.x]) / @intToFloat(f32, renderer.platform.window_size[game.y]);
+        const ratio = @intToFloat(f64, renderer.platform.window_size[game.x]) / @intToFloat(f64, renderer.platform.window_size[game.y]);
         if(ratio > 1.0) {
             res[game.x] *= 1 / ratio;
         }else{
@@ -333,7 +333,7 @@ pub const Renderer = struct {
         return res;
     }
 
-    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product, progress: f32) !void {
+    pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product, progress: f64) !void {
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 
@@ -357,28 +357,29 @@ pub const Renderer = struct {
         }
         var z_layer: i32 = 0;
         while(z_layer < product.size[game.z]) : (z_layer += 1) {
-            const our_progress: f32 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
-            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f32, z_layer)};
+            const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
+            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
             const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
             const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[game.x], product.size[game.y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
-            const tile_x0: f32 = tile_screen_0[game.x];
-            const tile_x1: f32 = tile_screen_1[game.x];
-            const tile_y0: f32 = tile_screen_0[game.y];
-            const tile_y1: f32 = tile_screen_1[game.y];
-            const tile_z: f32 = -@intToFloat(f32, product.pos[game.z] + z_layer) / 100.0;
-            const tile_data_x0: f32 = -1;
-            const tile_data_x1: f32 = @intToFloat(f32, product.size[game.x]) + 1;
-            const tile_data_y0: f32 = -1;
-            const tile_data_y1: f32 = @intToFloat(f32, product.size[game.y]) + 1;
-            const tile_data_z0: f32 = @intToFloat(f32, z_layer);
+            // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
+            const tile_x0: c.GLfloat = @floatCast(f32, tile_screen_0[game.x]);
+            const tile_x1: c.GLfloat = @floatCast(f32, tile_screen_1[game.x]);
+            const tile_y0: c.GLfloat = @floatCast(f32, tile_screen_0[game.y]);
+            const tile_y1: c.GLfloat = @floatCast(f32, tile_screen_1[game.y]);
+            const tile_z: c.GLfloat = @floatCast(f32, -@intToFloat(f64, product.pos[game.z] + z_layer) / 100.0);
+            const tile_data_x0: c.GLfloat = -1;
+            const tile_data_x1: c.GLfloat = @intToFloat(c.GLfloat, product.size[game.x]) + 1;
+            const tile_data_y0: c.GLfloat = -1;
+            const tile_data_y1: c.GLfloat = @intToFloat(c.GLfloat, product.size[game.y]) + 1;
+            const tile_data_z0: c.GLfloat = @intToFloat(c.GLfloat, z_layer);
             const tile_data_ptr: c.GLuint = @intCast(c.GLuint, result_ptr_idx);
             try final_rectangles.appendSlice(&[_]TileShader.Vertex{
-                .{.i_position = [_]f32{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]f32{tile_x1, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]f32{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]f32{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]f32{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
-                .{.i_position = [_]f32{tile_x0, tile_y1, tile_z}, .i_tile_position = [_]f32{tile_data_x0, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x1, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x0, tile_y0, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y0, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x1, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x1, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
+                .{.i_position = [_]c.GLfloat{tile_x0, tile_y1, tile_z}, .i_tile_position = [_]c.GLfloat{tile_data_x0, tile_data_y1, tile_data_z0}, .i_tile_data_ptr = tile_data_ptr},
             });
         }
         try sdl.gewrap(c.glBufferSubData(
@@ -390,7 +391,7 @@ pub const Renderer = struct {
         renderer.temp_this_frame_bufidx += res_byte_data.items.len / 4;
     }
 
-    pub fn updateBuffers(renderer: *Renderer, progress: f32) !void {
+    pub fn updateBuffers(renderer: *Renderer, progress: f64) !void {
         var final_rectangles = std.ArrayList(TileShader.Vertex).init(allocator());
         defer final_rectangles.deinit();
 
@@ -453,23 +454,23 @@ pub const Renderer = struct {
     }
 };
 
-fn interpolateVec3f(t: f32, a: Vec3f, b: Vec3f) Vec3f {
+fn interpolateVec3f(t: f64, a: Vec3f, b: Vec3f) Vec3f {
     return (b - a) * @splat(3, t) + a;
 }
 
-fn smoothstep(min: f64, max: f64, x: f64) f32 {
+fn smoothstep(min: f64, max: f64, x: f64) f64 {
     var v = (x - min) / (max - min);
     v = std.math.min(v, 1.0);
     v = std.math.max(v, 0.0);
     v = v * v * (3.0 - 2.0 * v);
 
-    return @floatCast(f32, v);
+    return @floatCast(f64, v);
 }
 
 fn vec3iToF(a: Vec3i) Vec3f {
     return Vec3f{
-        @intToFloat(f32, a[game.x]),
-        @intToFloat(f32, a[game.y]),
-        @intToFloat(f32, a[game.z]),
+        @intToFloat(f64, a[game.x]),
+        @intToFloat(f64, a[game.y]),
+        @intToFloat(f64, a[game.z]),
     };
 }

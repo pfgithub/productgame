@@ -7,8 +7,8 @@ pub const y = 1;
 pub const z = 2;
 pub const Vec2i = std.meta.Vector(2, i32);
 pub const Vec3i = std.meta.Vector(3, i32);
-pub const Vec2f = std.meta.Vector(2, f32);
-pub const Vec3f = std.meta.Vector(3, f32);
+pub const Vec2f = std.meta.Vector(2, f64);
+pub const Vec3f = std.meta.Vector(3, f64);
 
 pub fn pointInRect(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) bool {
     return !(@reduce(.Or, point < rect_pos) or @reduce(.Or, point >= rect_pos + rect_size));
