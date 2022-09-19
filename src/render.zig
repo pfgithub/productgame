@@ -375,18 +375,18 @@ pub const Renderer = struct {
         var z_layer: i32 = 0;
         while(z_layer < product.size[z]) : (z_layer += 1) {
             const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
-            const pos_anim = interpolateVec3f(our_progress, vec3iToF(product.moved_from), vec3iToF(product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
-            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[x], product.size[y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
+            const pos_anim = interpolateVec3f(our_progress, math.ecast(f64, product.moved_from), math.ecast(f64, product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - @splat(3, @as(f64, 1.0)));
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, Vec3i{product.size[x], product.size[y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
             // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
             const pos_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[z] + z_layer) / 100.0);
             const extra = Vec2f{1, 1};
             try final_rectangles.appendSlice(&rectVertices(
-                vec2fToGlf(tile_screen_0),
-                vec2fToGlf(tile_screen_1),
+                math.ecast(c.GLfloat, tile_screen_0),
+                math.ecast(c.GLfloat, tile_screen_1),
                 pos_z,
-                vec2fToGlf(Vec2f{0, 0} - extra),
-                vec2fToGlf(math.ecast(f64, math.swizzle(product.size, .xy)) + extra),
+                math.ecast(c.GLfloat, Vec2f{0, 0} - extra),
+                math.ecast(c.GLfloat, math.ecast(f64, math.swizzle(product.size, .xy)) + extra),
                 @intToFloat(c.GLfloat, z_layer),
                 @intCast(c.GLuint, result_ptr_idx),
             ));
@@ -505,12 +505,6 @@ fn smoothstep(min: f64, max: f64, value: f64) f64 {
     return @floatCast(f64, v);
 }
 
-fn vec3iToF(a: Vec3i) Vec3f {
-    return math.ecast(f64, a);
-}
-fn vec2fToGlf(a: Vec2f) Vec2glf {
-    return math.ecast(c.GLfloat, a);
-}
 // vecSwizzle(vec, anytype)
 // vecSwizzle(myvec, .xz) => vec2(vectype(myvec)){x, z}
 pub const Vec2glf = math.Vec(2, c.GLfloat);

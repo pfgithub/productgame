@@ -52,6 +52,9 @@ pub fn SwizzleRet(comptime ValTy: type, comptime tag: EnumLiteral) type {
     return Vec(nvec_len, child_ty);
 }
 pub fn swizzle(value: anytype, comptime tag: EnumLiteral) SwizzleRet(@TypeOf(value), tag) {
+    // consider using the @shuffle intrinsic here
+    // @shuffle(ty, vec, undefined, mask) where mask = vec(tag.len, i32){ swizzlechar }
+    // we could make the second vec have some common values eg 0, 1, -1, …
     if(@tagName(tag).len == 1) {
         return value[comptime @field(SwizzleChars, @tagName(tag))];
     }
