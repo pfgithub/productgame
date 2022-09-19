@@ -56,6 +56,11 @@ pub fn conveyorDir(conveyor: Tile) Vec2i {
     };
 }
 
+// note: product max size is 255 on any axis = 16581375 maximum tiles in a product
+// for larger products:
+// - display an error "the objects cannot be welded because it is too big"
+// for the map:
+// - chunk it to be 255x255x2 or something
 pub const Product = struct {
     id: ProductID,
     // MxN array of tiles
