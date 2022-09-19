@@ -392,7 +392,7 @@ pub const Renderer = struct {
             ));
         }
         if((result_ptr_idx * 4 + res_byte_data.items.len) / 4 >= max_tiles) {
-            @panic("too many tiles");
+            return error.TooManyTiles;
         }
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,
