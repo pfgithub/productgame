@@ -255,6 +255,7 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glGenTextures(1, &tiles_texture));
 
         try sdl.gewrap(c.glEnable(c.GL_DEPTH_TEST));
+        try sdl.gewrap(c.glEnable(c.GL_FRAMEBUFFER_SRGB));
         // only enable if we need it
         // try sdl.gewrap(c.glEnable(c.GL_BLEND));
         // try sdl.gewrap(c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA));

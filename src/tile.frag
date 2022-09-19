@@ -102,8 +102,8 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
             }
         }
         vec3 color = vec3(1.0, 1.0, 1.0);
-        color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.2, 1.0);
-        if(tile.x == TILE_block) color *= vec3(0.9);
+        color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
+        if(tile.x == TILE_block) color *= vec3(0.8);
         return vec4(color, 1.0);
     }
     if(tile.x == TILE_conveyor) {
@@ -189,7 +189,7 @@ void main() {
     if(o_color.a < 0.99 && tilepos.y < 0.2) {
         uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
         vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / 0.2));
-        o_color = blend(o_color, vec4(ncol.xyz * 0.5, ncol.a));
+        o_color = blend(o_color, vec4(ncol.xyz * 0.3, ncol.a));
     }
     if(o_color.a < 0.99) {
         discard;
