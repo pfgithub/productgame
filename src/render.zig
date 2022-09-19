@@ -179,7 +179,7 @@ pub const Renderer = struct {
 
     camera_height: i32 = 0,
     camera_pos: Vec2f = Vec2f{0.0, 0.0},
-    camera_scale: f64 = 0.1,
+    camera_scale_factor: f64 = 0.0,
 
     // TODO: preserve the buffer across frames and only update what is needed.
     // we have to use an allocator or something though.
@@ -278,6 +278,19 @@ pub const Renderer = struct {
         };
     }
 
+    pub fn camera_scale(renderer: *Renderer) f64 {
+        // 2 → 4
+        // 1 → 2
+        // 0 → 1
+        // -1 → ½
+        // -2 → ¼
+        // ah: 2^x
+
+        return std.math.pow(f64, 2.0, renderer.camera_scale_factor / 2.0) * 0.1;
+
+        // divide result by 10 (so 0 = 0.1)
+    }
+
     pub fn renderFrame(renderer: *Renderer, timestamp: f64) !void {
         renderer.timestamp = timestamp;
 
@@ -300,8 +313,8 @@ pub const Renderer = struct {
             res[game.y] /= ratio;
         }
         res = game.Vec2f{
-            res[game.x] / renderer.camera_scale,
-            -res[game.y] / renderer.camera_scale,
+            res[game.x] / renderer.camera_scale(),
+            -res[game.y] / renderer.camera_scale(),
         };
         const yoffset: f64 = -height * 0.2;
         res[game.y] -= yoffset;
@@ -320,8 +333,8 @@ pub const Renderer = struct {
         const yoffset: f64 = -world_space[game.z] * 0.2;
         res[game.y] += yoffset;
         res = game.Vec2f{
-            res[game.x] * renderer.camera_scale,
-            -res[game.y] * renderer.camera_scale,
+            res[game.x] * renderer.camera_scale(),
+            -res[game.y] * renderer.camera_scale(),
         };
         // res += renderer.camera_pos;
         const ratio = @intToFloat(f64, renderer.platform.window_size[game.x]) / @intToFloat(f64, renderer.platform.window_size[game.y]);

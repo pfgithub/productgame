@@ -178,14 +178,15 @@ pub fn main2() !void {
             }else if(event.type == c.SDL_QUIT) {
                 break :app;
             }else if(event.type == c.SDL_MOUSEWHEEL) {
-                if(event.wheel.preciseY > 0) {
-                    renderer.camera_scale *= 2.0;
-                    renderer.camera_pos *= @splat(2, @as(f64, 2.0));
-                }else{
-                    renderer.camera_scale /= 2.0;
-                    renderer.camera_pos /= @splat(2, @as(f64, 2.0));
-                }
-                std.log.info("mwheel {d} {d}", .{event.wheel.preciseX, event.wheel.preciseY});
+                const prev_scale = renderer.camera_scale();
+                renderer.camera_scale_factor -= event.wheel.preciseY;
+                // max zoom in: 22
+                // max zoom out: -13
+                if(renderer.camera_scale_factor > 22) renderer.camera_scale_factor = 22;
+                if(renderer.camera_scale_factor < -13) renderer.camera_scale_factor = -13;
+                const next_scale = renderer.camera_scale();
+                renderer.camera_pos *= @splat(2, next_scale / prev_scale);
+                std.log.info("mwheel {d}", .{renderer.camera_scale_factor});
             }
             // if(event.type == c.SDL_MULTIGESTURE) {
             //     // rotation: dTheta, zoom: dDist
