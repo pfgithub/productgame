@@ -20,6 +20,7 @@ pub fn build(b: *std.build.Builder) void {
         exe.linkFramework("Cocoa");
         exe.linkFramework("OpenGL");
         exe.linkSystemLibrary("SDL2");
+        exe.addCSourceFile("src/inertialscroll.m", &[_][]const u8{""});
     }else if(target.isLinux()) {
         exe.linkSystemLibrary("SDL2");
         exe.linkSystemLibrary("GL");

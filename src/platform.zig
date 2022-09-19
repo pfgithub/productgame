@@ -7,6 +7,8 @@ const game = @import("game.zig");
 const c = sdl.c;
 const log = std.log.scoped(.platform);
 
+extern fn enable_inertial_scroll() void;
+
 pub const Platform = struct {
     window: *c.SDL_Window,
 
@@ -50,6 +52,10 @@ pub const Platform = struct {
         ) orelse unreachable;
         const context: c.SDL_GLContext = c.SDL_GL_CreateContext(window);
         _ = context;
+
+        if(@import("builtin").os.tag == .macos) {
+            enable_inertial_scroll();
+        }
 
         return .{
             .window = window,
