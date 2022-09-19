@@ -362,11 +362,11 @@ pub const Renderer = struct {
             const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
             const tile_screen_1 = renderer.worldToScreen(pos_anim + vec3iToF(Vec3i{product.size[game.x], product.size[game.y], 0.0}) + Vec3f{1.0, 1.0, 0.0});
             // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
-            const tile_x0: c.GLfloat = @floatCast(f32, tile_screen_0[game.x]);
-            const tile_x1: c.GLfloat = @floatCast(f32, tile_screen_1[game.x]);
-            const tile_y0: c.GLfloat = @floatCast(f32, tile_screen_0[game.y]);
-            const tile_y1: c.GLfloat = @floatCast(f32, tile_screen_1[game.y]);
-            const tile_z: c.GLfloat = @floatCast(f32, -@intToFloat(f64, product.pos[game.z] + z_layer) / 100.0);
+            const tile_x0: c.GLfloat = @floatCast(c.GLfloat, tile_screen_0[game.x]);
+            const tile_x1: c.GLfloat = @floatCast(c.GLfloat, tile_screen_1[game.x]);
+            const tile_y0: c.GLfloat = @floatCast(c.GLfloat, tile_screen_0[game.y]);
+            const tile_y1: c.GLfloat = @floatCast(c.GLfloat, tile_screen_1[game.y]);
+            const tile_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[game.z] + z_layer) / 100.0);
             const tile_data_x0: c.GLfloat = -1;
             const tile_data_x1: c.GLfloat = @intToFloat(c.GLfloat, product.size[game.x]) + 1;
             const tile_data_y0: c.GLfloat = -1;
