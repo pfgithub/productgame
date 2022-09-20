@@ -10,14 +10,15 @@ const Vec2i = math.Vec2i;
 const Vec3i = math.Vec3i;
 const Vec2f = math.Vec2f;
 const Vec3f = math.Vec3f;
+const Vec2u8 = math.Vec2u8;
+const Vec3u8 = math.Vec3u8;
 
 pub fn pointInRect(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) bool {
     return !(@reduce(.Or, point < rect_pos) or @reduce(.Or, point >= rect_pos + rect_size));
 }
 
-pub fn rectPointToIndex(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) ?usize {
-    if(!pointInRect(point, rect_pos, rect_size)) return null;
-    const object_space_pos = point - rect_pos;
+pub fn rectPointToIndex(point: Vec3u8, rect_size: Vec3u8) usize {
+    const object_space_pos = point;
     // x + (y*w) + (z*w*h)
     var res: i32 = 0;
     inline for(.{z, y, x}) |coord| {
@@ -68,7 +69,7 @@ pub const Product = struct {
     tiles: []Tile,
     tiles_updated: usize, // increment every time a tile is changed. this tells the renderer to update the data.
     pos: Vec3i,
-    size: Vec3i,
+    size: Vec3u8,
     last_moved: usize = 0,
     moved_from: Vec3i = Vec3i{0, 0, 0},
     fixed: bool = false,
@@ -77,8 +78,18 @@ pub const Product = struct {
         allocator().free(product.tiles);
     }
 
-    pub fn getTile(product: Product, pos: Vec3i) Tile {
-        return product.tiles[rectPointToIndex(pos, product.pos, product.size) orelse return Tile.Air];
+    pub fn getTile(product: Product, offset: Vec3u8) Tile {
+        return product.tiles[rectPointToIndex(offset, product.size)];
+    }
+
+    pub fn containsPoint(product: Product, point: Vec3i) ?Vec3u8 {
+        if(pointInRect(point, product.pos, product.size)) {
+            return math.ecast(u8, point - product.pos);
+        }
+        return null;
+    }
+    pub fn toWorldSpace(product: Product, point: Vec3u8) Vec3i {
+        return product.pos + math.ecast(i32, point);
     }
 
     // note: whenever setting a tile, also update the buffer data with
@@ -86,28 +97,26 @@ pub const Product = struct {
 };
 
 const PosIter = struct {
-    pos: Vec3i,
-    size: Vec3i,
-    next_pos: Vec3i,
-    pub fn start(pos: Vec3i, size: Vec3i) PosIter {
+    size: Vec3u8,
+    next_pos: Vec3u8,
+    pub fn start(size: Vec3u8) PosIter {
         return .{
-            .pos = pos,
             .size = size,
-            .next_pos = pos,
+            .next_pos = Vec3u8{0, 0, 0},
         };
     }
-    pub fn next(iter: *PosIter) ?Vec3i {
-        if(iter.next_pos[z] - iter.pos[z] >= iter.size[z]) return null;
+    pub fn next(iter: *PosIter) ?Vec3u8 {
+        if(iter.next_pos[z] >= iter.size[z]) return null;
         const res = iter.next_pos;
 
         iter.next_pos[x] += 1;
-        if(iter.next_pos[x] - iter.pos[x] >= iter.size[x]) {
+        if(iter.next_pos[x] >= iter.size[x]) {
             iter.next_pos[y] += 1;
-            iter.next_pos[x] = iter.pos[x];
+            iter.next_pos[x] = 0;
         }
-        if(iter.next_pos[y] - iter.pos[y] >= iter.size[y]) {
+        if(iter.next_pos[y] >= iter.size[y]) {
             iter.next_pos[z] += 1;
-            iter.next_pos[y] = iter.pos[y];
+            iter.next_pos[y] = 0;
         }
 
         return res;
@@ -148,8 +157,10 @@ pub const World = struct {
     // - 2. check if the product has that tile
     fn getTile(world: World, pos: Vec3i) ?struct{product: *Product, tile: Tile} {
         for(world.products.items) |*product| {
-            const res = product.getTile(pos);
-            if(res.id != .air) return .{.product = product, .tile = res};
+            if(product.containsPoint(pos)) |ps_point| {
+                const res = product.getTile(ps_point);
+                if(res.id != .air) return .{.product = product, .tile = res};
+            }
         }
         return null;
     }
@@ -166,13 +177,14 @@ pub const World = struct {
         var i: usize = 0;
         while(i < world.products.items.len) : (i += 1) {
             var product = &world.products.items[i];
-            var iter_pos = PosIter.start(product.pos, product.size);
+            var iter_pos = PosIter.start(product.size);
             // hmm. this is having the conveyor move the object but it would probably be better for
             // the object to move itself
-            while(iter_pos.next()) |target_pos| {
-                const tile = product.getTile(target_pos);
+            while(iter_pos.next()) |target_ps_pos| {
+                const target_ws_pos = product.toWorldSpace(target_ps_pos);
+                const tile = product.getTile(target_ps_pos);
                 if(tile.id == .spawner) {
-                    const tile_above = world.getTile(target_pos + Vec3i{0, 0, 1});
+                    const tile_above = world.getTile(target_ws_pos + Vec3i{0, 0, 1});
                     if(tile_above == null) {
                         // summon product
                         const t_block = Tile{.id = .block};
@@ -184,15 +196,15 @@ pub const World = struct {
                             // MxN array of tiles
                             .tiles = newproduct_tiles,
                             .tiles_updated = 1,
-                            .pos = target_pos + Vec3i{0, 0, 1},
-                            .size = Vec3i{1, 1, 1},
+                            .pos = target_ws_pos + Vec3i{0, 0, 1},
+                            .size = Vec3u8{1, 1, 1},
                         };
                         world.products.append(newproduct) catch @panic("oom");
                         product = &world.products.items[i];
                     }
                 }
                 if(tile.id == .conveyor or tile.id == .spawner) {
-                    const tile_above = world.getTile(target_pos + Vec3i{0, 0, 1}) orelse continue;
+                    const tile_above = world.getTile(target_ws_pos + Vec3i{0, 0, 1}) orelse continue;
                     if(tile_above.product == product) continue;
                     if(tile_above.product.last_moved == world.physics_time) continue;
                     const dir = conveyorDir(tile);
@@ -219,11 +231,12 @@ pub const World = struct {
         pushable_products.append(product) catch @panic("oom"); // we don't know if it's pushable
         // yet but until we have proven it isn't, we say it is
 
-        var iter_pos = PosIter.start(product.pos, product.size);
-        while(iter_pos.next()) |target_pos| {
-            const product_tile = product.getTile(target_pos);
+        var iter_pos = PosIter.start(product.size);
+        while(iter_pos.next()) |target_ps_pos| {
+            const target_ws_pos = product.toWorldSpace(target_ps_pos);
+            const product_tile = product.getTile(target_ps_pos);
             if(product_tile.id == .air) continue;
-            const tile = world.getTile(target_pos + direction) orelse continue;
+            const tile = world.getTile(target_ws_pos + direction) orelse continue;
             if(tile.product.id == product.id) continue;
             if(world.validatePushProduct(tile.product, direction, pushable_products)) continue;
             return false;
@@ -246,5 +259,18 @@ pub const World = struct {
         }
 
         return true;
+    }
+
+    pub fn placeTile(world: *World, pos: Vec3i, tile: Tile) !void {
+        // if(tile.id == .air) @panic("TODO deleteTile");
+        // const current_block = world.getTile(pos);
+        // if(current_block) |cb| {
+        //     cb.product.setTile(pos, tile);
+        //     cb.product
+        //     cb.tile
+        // }
+        _ = world;
+        _ = pos;
+        _ = tile;
     }
 };

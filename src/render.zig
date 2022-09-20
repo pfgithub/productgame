@@ -443,8 +443,7 @@ pub const Renderer = struct {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
 
-        // const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
-        const under_cursor = renderer.camera_pos;
+        const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
         // todo: render objects above the cursor semitransparent
         // (two draw calls(?), bottom half renders at 100% opacity, top half renders at 50%)
         // no alpha blending except between the layers. but it's not each layer at 50%, it's the entire

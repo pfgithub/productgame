@@ -20,6 +20,8 @@ pub const Vec2i = Vec(2, i32);
 pub const Vec3i = Vec(3, i32);
 pub const Vec2f = Vec(2, f64);
 pub const Vec3f = Vec(3, f64);
+pub const Vec2u8 = Vec(2, u8);
+pub const Vec3u8 = Vec(3, u8);
 
 pub fn EcastRet(comptime Target: type, comptime Value: type) type {
     const v_ty = @typeInfo(Value);

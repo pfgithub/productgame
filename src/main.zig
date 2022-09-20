@@ -84,7 +84,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{5, 5, -1},
-            .size = math.Vec3i{10, 10, 3},
+            .size = math.Vec3u8{10, 10, 3},
             .fixed = true,
         };
         try world.products.append(newproduct);
@@ -109,7 +109,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{6, 7, 2},
-            .size = math.Vec3i{5, 5, 2},
+            .size = math.Vec3u8{5, 5, 2},
         };
         try world.products.append(newproduct);
     }
@@ -127,7 +127,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{9, 6, 0},
-            .size = math.Vec3i{2, 1, 4},
+            .size = math.Vec3u8{2, 1, 4},
         };
         try world.products.append(newproduct);
     }
@@ -153,6 +153,21 @@ pub fn main2() !void {
             if(event.type == c.SDL_MOUSEBUTTONDOWN) {
                 if(!platform.mouse_captured) {
                     try platform.startCaptureMouse();
+                }else{
+                    const under_cursor = renderer.screenToWorld(math.Vec2f{0.0, 0.0}, 0.0);
+                    const blockpos = math.ecast(i32, @floor(under_cursor));
+                    try world.placeTile(blockpos, .{.id = .block});
+                    // note: for deletion, we'll have an air block you place
+                    // note: todo seperate 'view' and 'render'
+                    // - 'view' contains information about the player and stuff
+                    //   - ie: position, camera zoom, selected object, …
+                    // - 'render' renders the view
+                    // - these are pretty tightly coupled but not identical
+                    // note: placeblock isn't this simple
+                    // if there are multiple possible things this block could be attached to,
+                    // you'll be asked to select one first or something.
+                    // we probably won't just merge them all together.
+                    // todo: highlight the currently selected group of objects
                 }
             }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
                 const mod_state = c.SDL_GetModState();
