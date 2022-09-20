@@ -147,7 +147,7 @@ pub fn main2() !void {
         try sdl.glCheckError();
         const curr_timestamp = @intToFloat(f64, std.time.milliTimestamp());
         defer prev_timestamp = curr_timestamp;
-        // log.info("mspf: {d}", .{ms_timestamp - prev_timestamp});
+        // log.info("mspf: {d}", .{curr_timestamp - prev_timestamp});
 
         while(platform.pollEvent()) |event| {
             if(event.type == c.SDL_MOUSEBUTTONDOWN) {
