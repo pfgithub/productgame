@@ -173,13 +173,31 @@ bvec2 and2(bvec2 a, bvec2 b) {
 }
 
 void main() {
-    vec2 tilepos = mod(v_tile_position.xy, 1.0);
     if(v_tile_data_ptr == 0) {
         o_color = ui(v_tile_position.xy);
     }else if(v_tile_data_ptr == 1) {
-        vec2 qpos = tilepos.xy * 2.0 - 1.0;
+        vec2 sub_pos = (v_tile_position.xy + vec2(0, v_tile_position.z * CONST_height)) * 2.0 - 1.0;
+        vec2 qpos = v_tile_position.xy * 2.0 - 1.0;
+        vec2 qpos_b = (v_tile_position.xy + vec2(0, -CONST_height)) * 2.0 - 1.0;
         o_color = vec4(0.0, 0.0, 0.0, 0.0);
-        if(any(and2(greaterThanEqual(abs(qpos), vec2(0.8)), greaterThanEqual(abs(qpos), vec2(0.5)).yx))) {
+        if(all(lessThanEqual(abs(qpos_b), vec2(1.0)))
+            && any(and2(greaterThanEqual(abs(qpos_b), vec2(0.8)), greaterThanEqual(abs(qpos_b), vec2(0.5)).yx))
+        ) {
+            o_color = vec4(0.2, 0.2, 0.2, 1.0);
+        }
+        if(all(lessThanEqual(abs(sub_pos), vec2(1.0)))
+            // && any(lessThanEqual(abs(sub_pos), vec2(0.05)))
+            && (
+                // small problem: our opengl coordinates aren't even on xy
+                // any(lessThanEqual(abs(v_qposition.xy), vec2(0.01)))
+                any(greaterThanEqual(abs(sub_pos), vec2(0.95)))
+            )
+        ) {
+            o_color = vec4(0.0, 0.0, 1.0, 1.0);
+        }
+        if(all(lessThanEqual(abs(qpos), vec2(1.0)))
+            && any(and2(greaterThanEqual(abs(qpos), vec2(0.8)), greaterThanEqual(abs(qpos), vec2(0.5)).yx))
+        ) {
             o_color = vec4(0.0, 0.0, 0.0, 1.0);
         }
         // float xpb = (4 * x * (1 - x));
@@ -188,7 +206,7 @@ void main() {
         // o_color = blend(vec4(0.0, 0.0, 1.0, val), o_color);
     }else{
         float progress = float(getMem(1).r) / 255.0;
-
+        vec2 tilepos = mod(v_tile_position.xy, 1.0);
         uvec4 header = getMem(v_tile_data_ptr);
         ivec3 size = ivec3(header.xyz);
         ivec3 pos = ivec3(floor(v_tile_position));

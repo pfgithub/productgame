@@ -394,10 +394,10 @@ pub const Renderer = struct {
         while(z_layer < product.size[z]) : (z_layer += 1) {
             const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, math.ecast(f64, product.moved_from), math.ecast(f64, product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
-            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0}, .level);
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, math.join(i32, .{math.swizzle(product.size, .xy), 0})) + Vec3f{1.0, 1.0, 0.0}, .level);
-            // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
             const extra = Vec2f{1, 1};
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - math.join(f64, .{extra, 0.0}), .level);
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, math.join(i32, .{math.swizzle(product.size, .xy), 0})) + math.join(f64, .{extra, 0.0}), .level);
+            // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
             try final_rectangles.appendSlice(&rectVertices(
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_0, .xy)),
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_1, .xy)),
@@ -450,23 +450,22 @@ pub const Renderer = struct {
         // no alpha blending except between the layers. but it's not each layer at 50%, it's the entire
         // top thing at 50%
 
+        // 2. add the focus cursor
         if(renderer.platform.mouse_captured) {
-            // const height = @ceil(under_cursor[z]);
-            const height = under_cursor[z];
+            const height = @ceil(under_cursor[z]);
+            const sub_height = under_cursor[z] - height;
             const pos_low = @floor(math.swizzle(under_cursor, .xy));
-            // const pos_high = @ceil(math.swizzle(under_cursor, .xy));
-            // pos_high = @select(f64, pos_high, pos_high + math.splat(2, f64, 1.0), pos_high == pos_low);
-            // wait i'm stupid
             const pos_high = pos_low + math.splat(2, f64, 1.0);
-            const tile_screen_0 = renderer.worldToScreen(math.join(f64, .{pos_low, height}), .overlay);
-            const tile_screen_1 = renderer.worldToScreen(math.join(f64, .{pos_high, height}), .overlay);
+            const extra = math.Vec2f{1.0, 1.0};
+            const tile_screen_0 = renderer.worldToScreen(math.join(f64, .{pos_low - extra, height}), .overlay);
+            const tile_screen_1 = renderer.worldToScreen(math.join(f64, .{pos_high + extra, height}), .overlay);
             try final_rectangles.appendSlice(&rectVertices(
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_0, .xy)),
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_1, .xy)),
                 math.ecast(c.GLfloat, tile_screen_0[z]),
-                math.ecast(c.GLfloat, Vec2f{0, 0}),
-                math.ecast(c.GLfloat, Vec2f{1, 1}),
-                0,
+                math.ecast(c.GLfloat, Vec2f{0, 0} - extra),
+                math.ecast(c.GLfloat, Vec2f{1, 1} + extra),
+                math.ecast(c.GLfloat, sub_height),
                 1,
             ));
         }
