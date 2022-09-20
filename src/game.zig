@@ -115,6 +115,11 @@ const PosIter = struct {
 };
 
 pub const World = struct {
+    // vv if this ever gets too much to loop over:
+    //   - https://gamedev.stackexchange.com/questions/21747/how-to-continuously-find-all-entities-within-a-radius-efficiently
+    // I suspect it will be fine though and we'll run into issues rendering lots of products long before
+    // we run into issues querying products in the physics function. Maybe not depending on how large products
+    // get though.
     products: std.ArrayList(Product),
     physics_time: usize = 1,
     next_product_id: usize = 1,
