@@ -368,19 +368,24 @@ pub const Renderer = struct {
         });
     }
 
+    fn i32ToU8array(v: i32) [4]u8 {
+        return .{
+            @intCast(u8, (v >> 24) & 0xFF),
+            @intCast(u8, (v >> 16) & 0xFF),
+            @intCast(u8, (v >> 8) & 0xFF),
+            @intCast(u8, (v >> 0) & 0xFF),
+        };
+    }
+
     pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product, progress: f64) !void {
         var res_byte_data = std.ArrayList(u8).init(allocator());
         defer res_byte_data.deinit();
 
         const result_ptr_idx: usize = renderer.temp_this_frame_bufidx;
 
-        try res_byte_data.appendSlice(&[_]u8{
-            // width, height, depth, unused
-            @intCast(u8, product.size[x]),
-            @intCast(u8, product.size[y]),
-            @intCast(u8, product.size[z]),
-            0,
-        });
+        try res_byte_data.appendSlice(&i32ToU8array(product.size[x]));
+        try res_byte_data.appendSlice(&i32ToU8array(product.size[y]));
+        try res_byte_data.appendSlice(&i32ToU8array(product.size[z]));
 
         for(product.tiles) |tile| {
             try res_byte_data.appendSlice(&[_]u8{

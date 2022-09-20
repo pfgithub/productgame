@@ -10,14 +10,12 @@ const Vec2i = math.Vec2i;
 const Vec3i = math.Vec3i;
 const Vec2f = math.Vec2f;
 const Vec3f = math.Vec3f;
-const Vec2u8 = math.Vec2u8;
-const Vec3u8 = math.Vec3u8;
 
 pub fn pointInRect(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) bool {
     return !(@reduce(.Or, point < rect_pos) or @reduce(.Or, point >= rect_pos + rect_size));
 }
 
-pub fn rectPointToIndex(point: Vec3u8, rect_size: Vec3u8) usize {
+pub fn rectPointToIndex(point: Vec3i, rect_size: Vec3i) usize {
     const object_space_pos = point;
     // x + (y*w) + (z*w*h)
     var res: i32 = 0;
@@ -69,7 +67,7 @@ pub const Product = struct {
     tiles: []Tile,
     tiles_updated: usize, // increment every time a tile is changed. this tells the renderer to update the data.
     pos: Vec3i,
-    size: Vec3u8,
+    size: Vec3i,
     last_moved: usize = 0,
     moved_from: Vec3i = Vec3i{0, 0, 0},
     fixed: bool = false,
@@ -78,17 +76,17 @@ pub const Product = struct {
         allocator().free(product.tiles);
     }
 
-    pub fn getTile(product: Product, offset: Vec3u8) Tile {
+    pub fn getTile(product: Product, offset: Vec3i) Tile {
         return product.tiles[rectPointToIndex(offset, product.size)];
     }
 
-    pub fn containsPoint(product: Product, point: Vec3i) ?Vec3u8 {
+    pub fn containsPoint(product: Product, point: Vec3i) ?Vec3i {
         if(pointInRect(point, product.pos, product.size)) {
-            return math.ecast(u8, point - product.pos);
+            return point - product.pos;
         }
         return null;
     }
-    pub fn toWorldSpace(product: Product, point: Vec3u8) Vec3i {
+    pub fn toWorldSpace(product: Product, point: Vec3i) Vec3i {
         return product.pos + math.ecast(i32, point);
     }
 
@@ -97,15 +95,15 @@ pub const Product = struct {
 };
 
 const PosIter = struct {
-    size: Vec3u8,
-    next_pos: Vec3u8,
-    pub fn start(size: Vec3u8) PosIter {
+    size: Vec3i,
+    next_pos: Vec3i,
+    pub fn start(size: Vec3i) PosIter {
         return .{
             .size = size,
-            .next_pos = Vec3u8{0, 0, 0},
+            .next_pos = Vec3i{0, 0, 0},
         };
     }
-    pub fn next(iter: *PosIter) ?Vec3u8 {
+    pub fn next(iter: *PosIter) ?Vec3i {
         if(iter.next_pos[z] >= iter.size[z]) return null;
         const res = iter.next_pos;
 
@@ -197,7 +195,7 @@ pub const World = struct {
                             .tiles = newproduct_tiles,
                             .tiles_updated = 1,
                             .pos = target_ws_pos + Vec3i{0, 0, 1},
-                            .size = Vec3u8{1, 1, 1},
+                            .size = Vec3i{1, 1, 1},
                         };
                         world.products.append(newproduct) catch @panic("oom");
                         product = &world.products.items[i];

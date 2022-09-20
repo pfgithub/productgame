@@ -84,7 +84,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{5, 5, -1},
-            .size = math.Vec3u8{10, 10, 3},
+            .size = math.Vec3i{10, 10, 3},
             .fixed = true,
         };
         try world.products.append(newproduct);
@@ -109,7 +109,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{6, 7, 2},
-            .size = math.Vec3u8{5, 5, 2},
+            .size = math.Vec3i{5, 5, 2},
         };
         try world.products.append(newproduct);
     }
@@ -127,7 +127,7 @@ pub fn main2() !void {
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{9, 6, 0},
-            .size = math.Vec3u8{2, 1, 4},
+            .size = math.Vec3i{2, 1, 4},
         };
         try world.products.append(newproduct);
     }

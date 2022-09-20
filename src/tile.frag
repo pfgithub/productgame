@@ -26,7 +26,7 @@ uvec4 getTile(int ptr, ivec3 pos, ivec3 size) {
     if(any(greaterThanEqual(pos, size)) || any(lessThan(pos, ivec3(0, 0, 0)))) {
        return uvec4(0, 0, 0, 0); // out of bounds; return air tile
     }
-    return getMem(ptr + 1 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
+    return getMem(ptr + 3 + pos.x + (pos.y * size.x) + (pos.z * size.x * size.y));
 }
 
 float map(float value, float min1, float max1, float min2, float max2) {
@@ -207,8 +207,11 @@ void main() {
     }else{
         float progress = float(getMem(1).r) / 255.0;
         vec2 tilepos = mod(v_tile_position.xy, 1.0);
-        uvec4 header = getMem(v_tile_data_ptr);
-        ivec3 size = ivec3(header.xyz);
+        ivec3 size = ivec3(
+            uvec4ToInt(getMem(v_tile_data_ptr + 0)),
+            uvec4ToInt(getMem(v_tile_data_ptr + 1)),
+            uvec4ToInt(getMem(v_tile_data_ptr + 2))
+        );
         ivec3 pos = ivec3(floor(v_tile_position));
         uvec4 surrounding[9] = getSurrounding(pos, size);
         o_color = drawTile(progress, surrounding, tilepos);
