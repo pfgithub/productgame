@@ -36,8 +36,19 @@ float map(float value, float min1, float max1, float min2, float max2) {
 vec4 drawTile2(float progress, uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
+    // TODO: just read a texture from a texture map instead of whatever this is
     if(tile.x == TILE_lab_tile || tile.x == TILE_block) {
+        float x = position.x;
+        float y = position.y;
+
+        float xmax = (4 * x * (1 - x));
+        float xmin = (xmax / 3.0) + (2.0 / 3.0);
+
+        float ymax = (4 * y * (1 - y));
+        float ymin = (ymax / 3.0) + (2.0 / 3.0);
+
         vec3 color = vec3(1.0, 1.0, 1.0);
+        color *= map(pow(xmin * ymin, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
         if(tile.x == TILE_block) color *= vec3(0.8);
         return vec4(color, 1.0);
     }
@@ -71,46 +82,44 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     float y = position.y;
 
     float xmax = (4 * x * (1 - x));
-    float xmin = (xmax / 3.0) + (2.0 / 3.0);
     float xpb = xmax;
 
     float ymax = (4 * y * (1 - y));
-    float ymin = (ymax / 3.0) + (2.0 / 3.0);
     float ypb = ymax;
 
     if(surrounding[1].x != TILE_air) {
-        if(y < 0.5) ypb = ymin;
+        if(y < 0.5) ypb = 1.0;
     }
     if(surrounding[3].x != TILE_air) {
-        if(x < 0.5) xpb = xmin;
+        if(x < 0.5) xpb = 1.0;
     }
     if(surrounding[5].x != TILE_air) {
-        if(x > 0.5) xpb = xmin;
+        if(x > 0.5) xpb = 1.0;
     }
     if(surrounding[7].x != TILE_air) {
-        if(y > 0.5) ypb = ymin;
+        if(y > 0.5) ypb = 1.0;
     }
     if(surrounding[0].x == TILE_air && surrounding[1].x != TILE_air && surrounding[3].x != TILE_air) {
         if(x < 0.5 && y < 0.5) {
-            xpb = max(xmax * ymin, ymax * xmin);
+            xpb = max(xmax, ymax);
             ypb = 1.0;
         }
     }
     if(surrounding[2].x == TILE_air && surrounding[1].x != TILE_air && surrounding[5].x != TILE_air) {
         if(x > 0.5 && y < 0.5) {
-            xpb = max(xmax * ymin, ymax * xmin);
+            xpb = max(xmax, ymax);
             ypb = 1.0;
         }
     }
     if(surrounding[6].x == TILE_air && surrounding[7].x != TILE_air && surrounding[3].x != TILE_air) {
         if(x < 0.5 && y > 0.5) {
-            xpb = max(xmax * ymin, ymax * xmin);
+            xpb = max(xmax, ymax);
             ypb = 1.0;
         }
     }
     if(surrounding[8].x == TILE_air && surrounding[7].x != TILE_air && surrounding[5].x != TILE_air) {
         if(x > 0.5 && y > 0.5) {
-            xpb = max(xmax * ymin, ymax * xmin);
+            xpb = max(xmax, ymax);
             ypb = 1.0;
         }
     }
