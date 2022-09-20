@@ -167,6 +167,7 @@ pub fn main2() !void {
                     renderer.camera_pos[math.z] -= vec[math.y] / render.tile_height * render.tile_height;
                     // "/ 0.2" if you want it to be 1:1 mouse pixel to screen pixel
                     // excluding that, it is 1:5 mouse pixel to screen pixel
+                    log.info("cam height: {d}", .{renderer.camera_pos[math.z]});
                 }else{
                     renderer.camera_pos += math.join(f64, .{vec, 0.0});
                 }
@@ -188,7 +189,7 @@ pub fn main2() !void {
                     },
                     c.SDLK_RIGHT => {
                         world.physicsStep();
-                        std.log.info("Step", .{});
+                        log.info("Step", .{});
                     },
                     else => {},
                 }
@@ -208,7 +209,7 @@ pub fn main2() !void {
             //     // it doesn't include scroll
 
             //     // weird, it gives physical location on the trackpad normalized from 0 to 1
-            //     std.log.info("zoom {d} {d} {d} {d}", .{event.mgesture.dDist, event.mgesture.dDist, event.mgesture.x, event.mgesture.y});
+            //     log.info("zoom {d} {d} {d} {d}", .{event.mgesture.dDist, event.mgesture.dDist, event.mgesture.x, event.mgesture.y});
             // }
         }
 
