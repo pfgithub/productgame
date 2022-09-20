@@ -216,6 +216,12 @@ pub const Renderer = struct {
         try sdl.gewrap(c.glAttachShader(shader_program, fragment_shader));
         try shaderBindAttributes(TileShader, shader_program);
         try sdl.gewrap(c.glLinkProgram(shader_program));
+        var status: c.GLint = undefined;
+        try sdl.gewrap(c.glGetProgramiv(shader_program, c.GL_LINK_STATUS, &status));
+        if(status == c.GL_FALSE) {
+            // TODO: glGetProgramInfoLog (and the gl_info_log_length thing)
+            return error.LinkFailed;
+        }
         try sdl.gewrap(c.glUseProgram(shader_program));
         errdefer {
             if(renderer.shader_program != 0) {

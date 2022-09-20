@@ -33,73 +33,11 @@ float map(float value, float min1, float max1, float min2, float max2) {
   return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
 
-vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
+vec4 drawTile2(float progress, uvec4 surrounding[9], vec2 position) {
     uvec4 tile = surrounding[4];
 
-    if(tile.x == TILE_air) return vec4(0.0, 0.0, 0.0, 0.0);
     if(tile.x == TILE_lab_tile || tile.x == TILE_block) {
-        // ok what I actually want is:
-        // - imagine an inset rounded rectangle
-        // - blur it
-        // but it's not just a rounded rectangle
-        // - it connects to nearby tiles. so if the bottom tile is a block, it uses that
-        // https://raphlinus.github.io/graphics/2020/04/21/blurred-rounded-rects.html
-
-        // https://youtu.be/BFld4EBO2RE?t=2062
-        // maybe I want these parabolas
-        // and then if the side has a tile, cut off that side of the parabola
-
-        // if we do position from -1 to 1, the equation is (x^2)+1 instead of 4x(1-x)
-
-        float x = position.x;
-        float y = position.y;
-
-        float xmax = (4 * x * (1 - x));
-        float xmin = (xmax / 3.0) + (2.0 / 3.0);
-        float xpb = xmax;
-
-        float ymax = (4 * y * (1 - y));
-        float ymin = (ymax / 3.0) + (2.0 / 3.0);
-        float ypb = ymax;
-
-        if(surrounding[1].x != TILE_air) {
-            if(y < 0.5) ypb = ymin;
-        }
-        if(surrounding[3].x != TILE_air) {
-            if(x < 0.5) xpb = xmin;
-        }
-        if(surrounding[5].x != TILE_air) {
-            if(x > 0.5) xpb = xmin;
-        }
-        if(surrounding[7].x != TILE_air) {
-            if(y > 0.5) ypb = ymin;
-        }
-        if(surrounding[0].x == TILE_air && surrounding[1].x != TILE_air && surrounding[3].x != TILE_air) {
-            if(x < 0.5 && y < 0.5) {
-                xpb = max(xmax * ymin, ymax * xmin);
-                ypb = 1.0;
-            }
-        }
-        if(surrounding[2].x == TILE_air && surrounding[1].x != TILE_air && surrounding[5].x != TILE_air) {
-            if(x > 0.5 && y < 0.5) {
-                xpb = max(xmax * ymin, ymax * xmin);
-                ypb = 1.0;
-            }
-        }
-        if(surrounding[6].x == TILE_air && surrounding[7].x != TILE_air && surrounding[3].x != TILE_air) {
-            if(x < 0.5 && y > 0.5) {
-                xpb = max(xmax * ymin, ymax * xmin);
-                ypb = 1.0;
-            }
-        }
-        if(surrounding[8].x == TILE_air && surrounding[7].x != TILE_air && surrounding[5].x != TILE_air) {
-            if(x > 0.5 && y > 0.5) {
-                xpb = max(xmax * ymin, ymax * xmin);
-                ypb = 1.0;
-            }
-        }
         vec3 color = vec3(1.0, 1.0, 1.0);
-        color *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
         if(tile.x == TILE_block) color *= vec3(0.8);
         return vec4(color, 1.0);
     }
@@ -123,6 +61,68 @@ vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
     }
     if(tile.x == TILE_spawner) return vec4(0.0, 0.0, 1.0, 1.0);
     return vec4(0.0, 1.0, 1.0, 1.0);
+}
+vec4 drawTile(float progress, uvec4 surrounding[9], vec2 position) {
+    uvec4 tile = surrounding[4];
+
+    if(tile.x == TILE_air) return vec4(0.0, 0.0, 0.0, 0.0);
+
+    float x = position.x;
+    float y = position.y;
+
+    float xmax = (4 * x * (1 - x));
+    float xmin = (xmax / 3.0) + (2.0 / 3.0);
+    float xpb = xmax;
+
+    float ymax = (4 * y * (1 - y));
+    float ymin = (ymax / 3.0) + (2.0 / 3.0);
+    float ypb = ymax;
+
+    if(surrounding[1].x != TILE_air) {
+        if(y < 0.5) ypb = ymin;
+    }
+    if(surrounding[3].x != TILE_air) {
+        if(x < 0.5) xpb = xmin;
+    }
+    if(surrounding[5].x != TILE_air) {
+        if(x > 0.5) xpb = xmin;
+    }
+    if(surrounding[7].x != TILE_air) {
+        if(y > 0.5) ypb = ymin;
+    }
+    if(surrounding[0].x == TILE_air && surrounding[1].x != TILE_air && surrounding[3].x != TILE_air) {
+        if(x < 0.5 && y < 0.5) {
+            xpb = max(xmax * ymin, ymax * xmin);
+            ypb = 1.0;
+        }
+    }
+    if(surrounding[2].x == TILE_air && surrounding[1].x != TILE_air && surrounding[5].x != TILE_air) {
+        if(x > 0.5 && y < 0.5) {
+            xpb = max(xmax * ymin, ymax * xmin);
+            ypb = 1.0;
+        }
+    }
+    if(surrounding[6].x == TILE_air && surrounding[7].x != TILE_air && surrounding[3].x != TILE_air) {
+        if(x < 0.5 && y > 0.5) {
+            xpb = max(xmax * ymin, ymax * xmin);
+            ypb = 1.0;
+        }
+    }
+    if(surrounding[8].x == TILE_air && surrounding[7].x != TILE_air && surrounding[5].x != TILE_air) {
+        if(x > 0.5 && y > 0.5) {
+            xpb = max(xmax * ymin, ymax * xmin);
+            ypb = 1.0;
+        }
+    }
+
+    // consider:
+    // making xmin/ymin = 0.0 and that's the texture's job
+    
+    vec4 color = drawTile2(progress, surrounding, position);
+    vec3 q = color.xyz;
+    q *= map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
+    color = vec4(q, color.a);
+    return vec4(color);
 }
 
 uvec4[9] getSurrounding(ivec3 center, ivec3 size) {
