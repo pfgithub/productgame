@@ -180,7 +180,7 @@ pub const Renderer = struct {
     frame_start_timestamp: f64 = 0,
     frame_start_id: usize = 1,
 
-    camera_pos: Vec3f = Vec3f{0.0, 0.0, 0.0},
+    camera_pos: Vec3f = Vec3f{0.0, 0.0, 0.5},
     camera_scale_factor: f64 = 0.0,
 
     // TODO: preserve the buffer across frames and only update what is needed.
@@ -308,26 +308,6 @@ pub const Renderer = struct {
     pub fn screenToWorld(renderer: *Renderer, screen_space: Vec2f, offset_height: f64) Vec3f {
         if(screen_space[x] != 0 or screen_space[y] != 0 or offset_height != 0) @panic("TODO");
         return renderer.camera_pos;
-        // var res = screen_space;
-        // const ratio = @intToFloat(f64, renderer.platform.window_size[x]) / @intToFloat(f64, renderer.platform.window_size[y]);
-        // if(ratio > 1.0) {
-        //     res[x] /= 1 / ratio;
-        // }else{
-        //     res[y] /= ratio;
-        // }
-        // res = Vec2f{
-        //     res[x] / renderer.camera_scale(),
-        //     -res[y] / renderer.camera_scale(),
-        // };
-        // res -= math.swizzle(renderer.camera_pos, .xy);
-        // const height = renderer.camera_pos[z] + offset_height;
-        // const yoffset: f64 = -height * tile_height;
-        // res[y] -= yoffset;
-        // return Vec3f{
-        //     res[x],
-        //     res[y],
-        //     height,
-        // };
     }
     
     const WtsHeightBias = enum {
@@ -456,13 +436,14 @@ pub const Renderer = struct {
 
         // 2. add the focus cursor
         if(renderer.platform.mouse_captured) {
-            const height = @ceil(under_cursor[z]);
-            const sub_height = under_cursor[z] - height;
+            const height_low = @floor(under_cursor[z]);
+            const height_high = height_low + 1.0;
+            const sub_height = height_high - under_cursor[z];
             const pos_low = @floor(math.swizzle(under_cursor, .xy));
             const pos_high = pos_low + math.splat(2, f64, 1.0);
             const extra = math.Vec2f{1.0, 1.0};
-            const tile_screen_0 = renderer.worldToScreen(math.join(f64, .{pos_low - extra, height}), .overlay);
-            const tile_screen_1 = renderer.worldToScreen(math.join(f64, .{pos_high + extra, height}), .overlay);
+            const tile_screen_0 = renderer.worldToScreen(math.join(f64, .{pos_low - extra, height_low}), .overlay);
+            const tile_screen_1 = renderer.worldToScreen(math.join(f64, .{pos_high + extra, height_low}), .overlay);
             try final_rectangles.appendSlice(&rectVertices(
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_0, .xy)),
                 math.ecast(c.GLfloat, math.swizzle(tile_screen_1, .xy)),

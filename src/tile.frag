@@ -176,7 +176,7 @@ void main() {
     if(v_tile_data_ptr == 0) {
         o_color = ui(v_tile_position.xy);
     }else if(v_tile_data_ptr == 1) {
-        vec2 sub_pos = (v_tile_position.xy + vec2(0, v_tile_position.z * CONST_height)) * 2.0 - 1.0;
+        vec2 sub_pos = (v_tile_position.xy + vec2(0, -v_tile_position.z * CONST_height)) * 2.0 - 1.0;
         vec2 qpos = v_tile_position.xy * 2.0 - 1.0;
         vec2 qpos_b = (v_tile_position.xy + vec2(0, -CONST_height)) * 2.0 - 1.0;
         o_color = vec4(0.0, 0.0, 0.0, 0.0);

@@ -16,6 +16,8 @@ pub fn pointInRect(point: Vec3i, rect_pos: Vec3i, rect_size: Vec3i) bool {
 }
 
 pub fn rectPointToIndex(point: Vec3i, rect_size: Vec3i) usize {
+    if(!pointInRect(point, .{0, 0, 0}, rect_size)) unreachable;
+
     const object_space_pos = point;
     // x + (y*w) + (z*w*h)
     var res: i32 = 0;
@@ -78,6 +80,9 @@ pub const Product = struct {
 
     pub fn getTile(product: Product, offset: Vec3i) Tile {
         return product.tiles[rectPointToIndex(offset, product.size)];
+    }
+    pub fn setTile(product: Product, offset: Vec3i, tile: Tile) void {
+        product.tiles[rectPointToIndex(offset, product.size)] = tile;
     }
 
     pub fn containsPoint(product: Product, point: Vec3i) ?Vec3i {
@@ -153,11 +158,11 @@ pub const World = struct {
     // to find a specific tile in the world:
     // - 1. filter products by bounding box
     // - 2. check if the product has that tile
-    fn getTile(world: World, pos: Vec3i) ?struct{product: *Product, tile: Tile} {
+    fn getTile(world: World, pos: Vec3i) ?struct{product: *Product, tile: Tile, offset: Vec3i} {
         for(world.products.items) |*product| {
             if(product.containsPoint(pos)) |ps_point| {
                 const res = product.getTile(ps_point);
-                if(res.id != .air) return .{.product = product, .tile = res};
+                if(res.id != .air) return .{.product = product, .tile = res, .offset = ps_point};
             }
         }
         return null;
@@ -259,16 +264,14 @@ pub const World = struct {
         return true;
     }
 
-    pub fn placeTile(world: *World, pos: Vec3i, tile: Tile) !void {
-        // if(tile.id == .air) @panic("TODO deleteTile");
-        // const current_block = world.getTile(pos);
-        // if(current_block) |cb| {
-        //     cb.product.setTile(pos, tile);
-        //     cb.product
-        //     cb.tile
-        // }
-        _ = world;
-        _ = pos;
-        _ = tile;
+    pub fn placeTile(world: *World, pos: Vec3i, new_tile: Tile) !void {
+        if(new_tile.id == .air) @panic("TODO deleteTile");
+        const current_block = world.getTile(pos);
+        if(current_block) |cb| {
+            cb.product.setTile(cb.offset, new_tile);
+            std.log.info("✓ set", .{});
+        }else{
+            std.log.info("TODO set new tile", .{});
+        }
     }
 };
