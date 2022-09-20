@@ -180,7 +180,7 @@ pub const Renderer = struct {
     frame_start_timestamp: f64 = 0,
     frame_start_id: usize = 1,
 
-    camera_pos: Vec3f = Vec3f{0.0, 0.0, -1.0},
+    camera_pos: Vec3f = Vec3f{0.0, 0.0, 0.0},
     camera_scale_factor: f64 = 0.0,
 
     // TODO: preserve the buffer across frames and only update what is needed.
