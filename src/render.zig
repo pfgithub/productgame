@@ -443,14 +443,16 @@ pub const Renderer = struct {
             try renderer.updateProduct(&final_rectangles, product, progress);
         }
 
-        const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
+        // const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
+        const under_cursor = renderer.camera_pos;
         // todo: render objects above the cursor semitransparent
         // (two draw calls(?), bottom half renders at 100% opacity, top half renders at 50%)
         // no alpha blending except between the layers. but it's not each layer at 50%, it's the entire
         // top thing at 50%
 
         if(renderer.platform.mouse_captured) {
-            const height = @ceil(under_cursor[z]);
+            // const height = @ceil(under_cursor[z]);
+            const height = under_cursor[z];
             const pos_low = @floor(math.swizzle(under_cursor, .xy));
             // const pos_high = @ceil(math.swizzle(under_cursor, .xy));
             // pos_high = @select(f64, pos_high, pos_high + math.splat(2, f64, 1.0), pos_high == pos_low);
