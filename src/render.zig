@@ -331,9 +331,9 @@ pub const Renderer = struct {
     }
     
     const WtsHeightBias = enum {
-        fake3d,
         level,
         overlay,
+        fake3d, // fake3d should be rendered at y=-1 from the target
     };
 
     pub fn worldToScreen(renderer: *Renderer, world_space: Vec3f, bias: WtsHeightBias) Vec3f {

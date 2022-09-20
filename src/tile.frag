@@ -168,14 +168,18 @@ vec4 ui(vec2 pos) {
     return vec4(0.0, 0.0, 0.0, 0.0);
 }
 
+bvec2 and2(bvec2 a, bvec2 b) {
+    return bvec2(a.x && b.x, a.y && b.y);
+}
+
 void main() {
     vec2 tilepos = mod(v_tile_position.xy, 1.0);
     if(v_tile_data_ptr == 0) {
         o_color = ui(v_tile_position.xy);
     }else if(v_tile_data_ptr == 1) {
-        float x = tilepos.x;
-        float y = tilepos.y;
-        if(x <= 0.1 || x >= 0.9 || y <= 0.1 || y >= 0.9) {
+        vec2 qpos = tilepos.xy * 2.0 - 1.0;
+        o_color = vec4(0.0, 0.0, 0.0, 0.0);
+        if(any(and2(greaterThanEqual(abs(qpos), vec2(0.8)), greaterThanEqual(abs(qpos), vec2(0.5)).yx))) {
             o_color = vec4(0.0, 0.0, 0.0, 1.0);
         }
         // float xpb = (4 * x * (1 - x));
@@ -190,6 +194,7 @@ void main() {
         ivec3 pos = ivec3(floor(v_tile_position));
         uvec4 surrounding[9] = getSurrounding(pos, size);
         o_color = drawTile(progress, surrounding, tilepos);
+        // TODO vv move this to a different quad
         if(o_color.a < 0.99 && tilepos.y < CONST_height) {
             uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
             vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / CONST_height));
