@@ -4,9 +4,7 @@
 flat out int v_tile_data_ptr;
 out vec3 v_tile_position;
 out vec3 v_qposition;
-out float v_z;
 void main() {
-    v_z = -i_position.z * 100.0;
     gl_Position = vec4( i_position, 1.0 );
     v_tile_data_ptr = int(i_tile_data_ptr);
     v_tile_position = i_tile_position;
@@ -19,7 +17,6 @@ void main() {
 flat in int v_tile_data_ptr;
 in vec3 v_tile_position;
 in vec3 v_qposition;
-in float v_z;
 uniform usamplerBuffer u_tbo_tex;
 out vec4 o_color;
 uvec4 getMem(int ptr) {
@@ -172,25 +169,10 @@ vec4 ui(vec2 pos) {
 }
 
 void main() {
+    vec2 tilepos = mod(v_tile_position.xy, 1.0);
     if(v_tile_data_ptr == 0) {
         o_color = ui(v_tile_position.xy);
-        if(o_color.a < 0.99) {
-            discard;
-        }
-        return;
-    }
-
-    float progress = float(getMem(1).r) / 255.0;
-    ivec3 targeted_block_pos = ivec3(getMem(2).xyz);
-    int targeted_block_id = uvec4ToInt(getMem(3));
-
-    uvec4 header = getMem(v_tile_data_ptr);
-    ivec3 size = ivec3(header.xyz);
-    ivec3 pos = ivec3(floor(v_tile_position));
-    uvec4 surrounding[9] = getSurrounding(pos, size);
-    vec2 tilepos = mod(v_tile_position.xy, 1.0);
-    o_color = drawTile(progress, surrounding, tilepos);
-    if(v_tile_data_ptr == targeted_block_id && ivec3(floor(v_tile_position)) == targeted_block_pos) {
+    }else if(v_tile_data_ptr == 1) {
         float x = tilepos.x;
         float y = tilepos.y;
         if(x <= 0.1 || x >= 0.9 || y <= 0.1 || y >= 0.9) {
@@ -200,16 +182,23 @@ void main() {
         // float ypb = (4 * y * (1 - y));
         // float val = map(pow(xpb * ypb, 1.0/8.0), 0.0, 1.0, 0.0, 1.0);
         // o_color = blend(vec4(0.0, 0.0, 1.0, val), o_color);
-    }
-    if(o_color.a < 0.99 && tilepos.y < CONST_height) {
-        uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
-        vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / CONST_height));
-        o_color = blend(o_color, vec4(ncol.xyz * 0.3, ncol.a));
+    }else{
+        float progress = float(getMem(1).r) / 255.0;
+
+        uvec4 header = getMem(v_tile_data_ptr);
+        ivec3 size = ivec3(header.xyz);
+        ivec3 pos = ivec3(floor(v_tile_position));
+        uvec4 surrounding[9] = getSurrounding(pos, size);
+        o_color = drawTile(progress, surrounding, tilepos);
+        if(o_color.a < 0.99 && tilepos.y < CONST_height) {
+            uvec4 surrounding2[9] = getVerticalSurrounding(pos + ivec3(0, -1, 0), size);
+            vec4 ncol = drawTile(progress, surrounding2, vec2(tilepos.x, tilepos.y / CONST_height));
+            o_color = blend(o_color, vec4(ncol.xyz * 0.3, ncol.a));
+        }
     }
     if(o_color.a < 0.99) {
         discard;
     }
-    // if(v_z <= 0.1 && v_z >= -0.1) o_color *= vec4(0.9, 0.9, 0.9, 1.0);
 }
 
 #endif

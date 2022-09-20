@@ -329,8 +329,14 @@ pub const Renderer = struct {
         //     height,
         // };
     }
+    
+    const WtsHeightBias = enum {
+        fake3d,
+        level,
+        overlay,
+    };
 
-    pub fn worldToScreen(renderer: *Renderer, world_space: Vec3f) Vec2f {
+    pub fn worldToScreen(renderer: *Renderer, world_space: Vec3f, bias: WtsHeightBias) Vec3f {
         var res = Vec2f{
             world_space[x],
             world_space[y],
@@ -348,7 +354,18 @@ pub const Renderer = struct {
         }else{
             res[y] *= ratio;
         }
-        return res;
+        var height = -world_space[z] / 0x0FFF;
+        if(bias != .level) {
+            height -= (@intToFloat(f64, @enumToInt(bias)) / @as(comptime_int, std.meta.fields(WtsHeightBias).len)) / 0x1FFF;
+        }
+        // 1.000....0001, where the rightmost one represents 2^-23.
+        // Hence 1 + 2^-23 is the smallest number bigger than 1 that the standard can represent.
+        // (for a 32 bit float)
+        // (maybe screen coordinates should be Vec3glf because that's what it actually is)
+        return math.join(f64, .{
+            res,
+            height,
+        });
     }
 
     pub fn updateProduct(renderer: *Renderer, final_rectangles: *std.ArrayList(TileShader.Vertex), product: game.Product, progress: f64) !void {
@@ -377,15 +394,14 @@ pub const Renderer = struct {
         while(z_layer < product.size[z]) : (z_layer += 1) {
             const our_progress: f64 = if(product.last_moved != renderer.frame_start_id) 1.0 else progress;
             const pos_anim = interpolateVec3f(our_progress, math.ecast(f64, product.moved_from), math.ecast(f64, product.pos)) + Vec3f{0.0, 0.0, @intToFloat(f64, z_layer)};
-            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0});
-            const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, math.join(i32, .{math.swizzle(product.size, .xy), 0})) + Vec3f{1.0, 1.0, 0.0});
+            const tile_screen_0 = renderer.worldToScreen(pos_anim - Vec3f{1.0, 1.0, 0.0}, .level);
+            const tile_screen_1 = renderer.worldToScreen(pos_anim + math.ecast(f64, math.join(i32, .{math.swizzle(product.size, .xy), 0})) + Vec3f{1.0, 1.0, 0.0}, .level);
             // TODO: for precision, crop tile pos to [-1..1] and update tile_data to the cropped values
-            const pos_z: c.GLfloat = @floatCast(c.GLfloat, -@intToFloat(f64, product.pos[z] + z_layer) / 100.0);
             const extra = Vec2f{1, 1};
             try final_rectangles.appendSlice(&rectVertices(
-                math.ecast(c.GLfloat, tile_screen_0),
-                math.ecast(c.GLfloat, tile_screen_1),
-                pos_z,
+                math.ecast(c.GLfloat, math.swizzle(tile_screen_0, .xy)),
+                math.ecast(c.GLfloat, math.swizzle(tile_screen_1, .xy)),
+                math.ecast(c.GLfloat, tile_screen_0[z]),
                 math.ecast(c.GLfloat, Vec2f{0, 0} - extra),
                 math.ecast(c.GLfloat, math.ecast(f64, math.swizzle(product.size, .xy)) + extra),
                 @intToFloat(c.GLfloat, z_layer),
@@ -428,8 +444,30 @@ pub const Renderer = struct {
         }
 
         const under_cursor = renderer.screenToWorld(Vec2f{0.0, 0.0}, 0.0);
-        // so I guess we can get the object under the cursor and then use that to determine the id based 
-        // on our data here
+        // todo: render objects above the cursor semitransparent
+        // (two draw calls(?), bottom half renders at 100% opacity, top half renders at 50%)
+        // no alpha blending except between the layers. but it's not each layer at 50%, it's the entire
+        // top thing at 50%
+
+        if(renderer.platform.mouse_captured) {
+            const height = @ceil(under_cursor[z]);
+            const pos_low = @floor(math.swizzle(under_cursor, .xy));
+            // const pos_high = @ceil(math.swizzle(under_cursor, .xy));
+            // pos_high = @select(f64, pos_high, pos_high + math.splat(2, f64, 1.0), pos_high == pos_low);
+            // wait i'm stupid
+            const pos_high = pos_low + math.splat(2, f64, 1.0);
+            const tile_screen_0 = renderer.worldToScreen(math.join(f64, .{pos_low, height}), .overlay);
+            const tile_screen_1 = renderer.worldToScreen(math.join(f64, .{pos_high, height}), .overlay);
+            try final_rectangles.appendSlice(&rectVertices(
+                math.ecast(c.GLfloat, math.swizzle(tile_screen_0, .xy)),
+                math.ecast(c.GLfloat, math.swizzle(tile_screen_1, .xy)),
+                math.ecast(c.GLfloat, tile_screen_0[z]),
+                math.ecast(c.GLfloat, Vec2f{0, 0}),
+                math.ecast(c.GLfloat, Vec2f{1, 1}),
+                0,
+                1,
+            ));
+        }
 
         // 2. add the ui layer
         if(renderer.platform.mouse_captured) {
@@ -453,12 +491,9 @@ pub const Renderer = struct {
             // progress
             std.math.lossyCast(u8, progress * 255.0), 0, 0, 0,
             // t_x, t_y, t_z, FLAGS
-            std.math.lossyCast(u8, under_cursor[x] - 5.0),
-            std.math.lossyCast(u8, under_cursor[y] - 5.0),
-            std.math.lossyCast(u8, under_cursor[z] - 5.0),
-            0,
+            0, 0, 0, 0,
             // t_id
-            0, 0, 0, if(renderer.platform.mouse_captured) 4 else 0,
+            0, 0, 0, 0,
         };
         try sdl.gewrap(c.glBufferSubData(
             c.GL_TEXTURE_BUFFER,

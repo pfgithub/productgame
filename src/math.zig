@@ -97,6 +97,10 @@ pub fn join(comptime Type: type, value: anytype) JoinResultType(Type, @TypeOf(va
     return res;
 }
 
+pub fn splat(comptime num: comptime_int, comptime Type: type, value: Type) Vec(num, Type) {
+    return @splat(num, value);
+}
+
 pub const EnumLiteral = @Type(.EnumLiteral);
 
 pub fn range(len: usize) []const void {
