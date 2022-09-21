@@ -269,9 +269,21 @@ pub const World = struct {
         const current_block = world.getTile(pos);
         if(current_block) |cb| {
             cb.product.setTile(cb.offset, new_tile);
-            std.log.info("✓ set", .{});
+            log.info("✓ set", .{});
         }else{
-            std.log.info("TODO set new tile", .{});
+            const newproduct_tiles = allocator().dupe(Tile, &[_]Tile{
+                new_tile,
+            }) catch @panic("oom");
+            const newproduct = Product{
+                .id = world.nextProductId(),
+                // MxN array of tiles
+                .tiles = newproduct_tiles,
+                .tiles_updated = 1,
+                .pos = pos,
+                .size = Vec3i{1, 1, 1},
+            };
+            world.products.append(newproduct) catch @panic("oom");
+            log.info("TODO merge products", .{});
         }
     }
 };
