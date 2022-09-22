@@ -1,17 +1,6 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
-
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
-
-    const exe = b.addExecutable("productgame", "src/main.zig");
+fn libcfg(b: *std.build.Builder, exe: *std.build.LibExeObjStep, target: std.zig.CrossTarget, mode: std.builtin.Mode) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
@@ -27,14 +16,33 @@ pub fn build(b: *std.build.Builder) void {
     }else{
         @panic("unsupported target");
     }
-    exe.install();
 
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
+    _ = b;
+}
+
+pub fn build(b: *std.build.Builder) void {
+    const target = b.standardTargetOptions(.{});
+    const mode = b.standardReleaseOptions();
+
+    const exe = b.addSharedLibrary("productgame", "src/main.zig", .unversioned);
+    libcfg(b, exe, target, mode);
+
+    const exe_install = b.addInstallArtifact(exe);
+    const game_step = b.step("game", "Build the game");
+    game_step.dependOn(&exe_install.step);
+
+    const launcher = b.addExecutable("productlauncher", "src/launcher.zig");
+    libcfg(b, launcher, target, mode);
+
+    const launcher_install = b.addInstallArtifact(launcher);
+    b.getInstallStep().dependOn(&launcher_install.step);
+
+    const run_cmd = launcher.run();
+    run_cmd.step.dependOn(&launcher_install.step);
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
 
-    const run_step = b.step("run", "Run the app");
+    const run_step = b.step("run", "Run the launcher");
     run_step.dependOn(&run_cmd.step);
 }

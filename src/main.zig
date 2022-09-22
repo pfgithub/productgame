@@ -1,11 +1,12 @@
 const std = @import("std");
 const sdl = @import("sdl.zig");
 const game = @import("game.zig");
-const render = @import("render.zig");
+const render = @import("render.zig"); // rend
 const plat = @import("platform.zig");
 const c = sdl.c;
 const log = std.log.scoped(.main);
 const math = @import("math.zig");
+const shared = @import("shared.zig");
 
 const x = math.x;
 const y = math.y;
@@ -18,22 +19,62 @@ pub fn allocator() std.mem.Allocator {
     return global_allocator.?;
 }
 
-pub fn main() !void {
-    main2() catch |e| switch(e) {
-        error.ShaderCompilationFailed => std.os.exit(1),
-        else => return e,
+// todo generate this based on @import("root")
+const State = struct {
+    pub fn create(launcher_data: *const shared.LauncherData) !*State {
+        const page_alloc = std.heap.page_allocator;
+        const global_state = try page_alloc.create(State);
+        errdefer page_alloc.destroy(global_state);
+        try init(launcher_data, global_state);
+        return global_state;
+    }
+    pub fn destroy(state: *State) void {
+        deinit(state);
+        const page_alloc = std.heap.page_allocator;
+        page_alloc.destroy(state);
+    }
+
+    gpa: std.heap.GeneralPurposeAllocator(.{}),
+    platform: plat.Platform,
+    world: game.World,
+    renderer: render.Renderer,
+    fullscreen: bool,
+};
+
+fn extern_init(launcher_data: *const shared.LauncherData) callconv(.C) usize {
+    const res = State.create(launcher_data) catch @panic("todo pass through errors");
+    return @ptrToInt(res);
+}
+fn extern_deinit(data: usize) callconv(.C) void {
+    const state = @intToPtr(*State, data);
+    state.destroy();
+}
+fn extern_onEvent(data: usize, event: *const c.SDL_Event) callconv(.C) void {
+    const state = @intToPtr(*State, data);
+    onEvent(state, event.*) catch @panic("todo pass through errors");
+}
+fn extern_onRender(data: usize) callconv(.C) void {
+    const state = @intToPtr(*State, data);
+    onRender(state) catch @panic("todo pass through errors");
+}
+
+export fn pg_get_app() callconv(.C) shared.App {
+    return .{
+        .init = &extern_init,
+        .deinit = &extern_deinit,
+        .onEvent = &extern_onEvent,
+        .onRender = &extern_onRender,
     };
 }
 
-pub fn main2() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer if(gpa.deinit()) unreachable;
-    global_allocator = gpa.allocator();
+fn init(launcher_data: *const shared.LauncherData, state: *State) !void {
+    state.gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    global_allocator = state.gpa.allocator();
 
-    var platform = try plat.Platform.init();
+    state.platform = try plat.Platform.init(launcher_data.window);
 
-    var world = try game.World.init();
-    defer world.deinit();
+    state.world = try game.World.init();
+    errdefer state.world.deinit();
 
     const t_lab = game.Tile{.id = .lab_tile};
     const t_block = game.Tile{.id = .block};
@@ -79,7 +120,7 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_air, t_lab,
         });
         const newproduct = game.Product{
-            .id = world.nextProductId(),
+            .id = state.world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
@@ -87,7 +128,7 @@ pub fn main2() !void {
             .size = math.Vec3i{10, 10, 3},
             .fixed = true,
         };
-        try world.products.append(newproduct);
+        try state.world.products.append(newproduct);
     }
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
@@ -104,14 +145,14 @@ pub fn main2() !void {
             t_air, t_air, t_air, t_air, t_air,
         });
         const newproduct = game.Product{
-            .id = world.nextProductId(),
+            .id = state.world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{6, 7, 2},
             .size = math.Vec3i{5, 5, 2},
         };
-        try world.products.append(newproduct);
+        try state.world.products.append(newproduct);
     }
     {
         const newproduct_tiles = try allocator().dupe(game.Tile, &[_]game.Tile{
@@ -122,14 +163,14 @@ pub fn main2() !void {
             t_block, t_air,
         });
         const newproduct = game.Product{
-            .id = world.nextProductId(),
+            .id = state.world.nextProductId(),
             // MxN array of tiles
             .tiles = newproduct_tiles,
             .tiles_updated = 1,
             .pos = math.Vec3i{9, 6, 0},
             .size = math.Vec3i{2, 1, 4},
         };
-        try world.products.append(newproduct);
+        try state.world.products.append(newproduct);
     }
 
     // we should seperate View from Renderer
@@ -137,99 +178,100 @@ pub fn main2() !void {
     // - View views the game state for the current client
     // - Render renders the game in the current view
     // or something
-    var renderer = try render.Renderer.init(&platform, &world);
+    state.renderer = try render.Renderer.init(&state.platform, &state.world);
 
-    var fullscreen = false;
+    state.fullscreen = false;
+}
+fn deinit(state: *State) void {
+    state.world.deinit();
+    if(state.gpa.deinit()) @panic("memory leak");
+}
 
-    var prev_timestamp = @intToFloat(f64, std.time.milliTimestamp());
-
-    app: while(true) {
-        try sdl.glCheckError();
-        const curr_timestamp = @intToFloat(f64, std.time.milliTimestamp());
-        defer prev_timestamp = curr_timestamp;
-        // log.info("mspf: {d}", .{curr_timestamp - prev_timestamp});
-
-        while(platform.pollEvent()) |event| {
-            if(event.type == c.SDL_MOUSEBUTTONDOWN) {
-                if(!platform.mouse_captured) {
-                    try platform.startCaptureMouse();
-                }else{
-                    const under_cursor = renderer.screenToWorld(math.Vec2f{0.0, 0.0}, 0.0);
-                    const blockpos = math.ecast(i32, @floor(under_cursor));
-                    try world.placeTile(blockpos, .{.id = .block});
-                    // note: for deletion, we'll have an air block you place
-                    // note: todo seperate 'view' and 'render'
-                    // - 'view' contains information about the player and stuff
-                    //   - ie: position, camera zoom, selected object, …
-                    // - 'render' renders the view
-                    // - these are pretty tightly coupled but not identical
-                    // note: placeblock isn't this simple
-                    // if there are multiple possible things this block could be attached to,
-                    // you'll be asked to select one first or something.
-                    // we probably won't just merge them all together.
-                    // todo: highlight the currently selected group of objects
-                }
-            }else if(event.type == c.SDL_MOUSEMOTION and platform.mouse_captured) {
-                const mod_state = c.SDL_GetModState();
-                const shift_down = (mod_state & c.KMOD_LSHIFT != 0) or (mod_state & c.KMOD_RSHIFT != 0);
-                // we want to move based on the current scale
-                const minsz = @intToFloat(f64, std.math.min(platform.window_size[x], platform.window_size[y]));
-                const vec = math.Vec2f{
-                    @intToFloat(f64, event.motion.xrel) / minsz * 2 / renderer.camera_scale(),
-                    @intToFloat(f64, event.motion.yrel) / minsz * 2 / renderer.camera_scale(),
-                };
-                if(shift_down) {
-                    renderer.camera_pos[math.z] -= vec[math.y] / render.tile_height * render.tile_height;
-                    // "/ 0.2" if you want it to be 1:1 mouse pixel to screen pixel
-                    // excluding that, it is 1:5 mouse pixel to screen pixel
-                    log.info("cam height: {d}", .{renderer.camera_pos[math.z]});
-                }else{
-                    renderer.camera_pos += math.join(f64, .{vec, 0.0});
-                }
-            }else if(event.type == c.SDL_KEYDOWN) {
-                switch(event.key.keysym.sym) {
-                    c.SDLK_ESCAPE => {
-                        try platform.stopCaptureMouse();
-                    },
-                    'f' => {
-                        fullscreen =! fullscreen;
-                        platform.setFullscreen(fullscreen) catch {
-                            fullscreen =! fullscreen;
-                        };
-                    },
-                    'r' => {
-                        renderer.recompileShaders() catch |e| {
-                            log.err("Failed to recompile shaders: {}", .{e});
-                        };
-                    },
-                    c.SDLK_RIGHT => {
-                        world.physicsStep();
-                        log.info("Step", .{});
-                    },
-                    else => {},
-                }
-            }else if(event.type == c.SDL_QUIT) {
-                break :app;
-            }else if(event.type == c.SDL_MOUSEWHEEL) {
-                renderer.camera_scale_factor += event.wheel.preciseY;
-                // ^ why is it backwards on mac?
-                // max zoom in: 22
-                // max zoom out: -13
-                if(renderer.camera_scale_factor > 22) renderer.camera_scale_factor = 22;
-                if(renderer.camera_scale_factor < -13) renderer.camera_scale_factor = -13;
-                std.log.info("mwheel {d}", .{renderer.camera_scale_factor});
-            }
-            // if(event.type == c.SDL_MULTIGESTURE) {
-            //     // rotation: dTheta, zoom: dDist
-            //     // it doesn't include scroll
-
-            //     // weird, it gives physical location on the trackpad normalized from 0 to 1
-            //     log.info("zoom {d} {d} {d} {d}", .{event.mgesture.dDist, event.mgesture.dDist, event.mgesture.x, event.mgesture.y});
-            // }
+fn onEvent(state: *State, event: c.SDL_Event) !void {
+    state.platform.updateWithEvent(event);
+    if(event.type == c.SDL_MOUSEBUTTONDOWN) {
+        if(!state.platform.mouse_captured) {
+            try state.platform.startCaptureMouse();
+        }else{
+            const under_cursor = state.renderer.screenToWorld(math.Vec2f{0.0, 0.0}, 0.0);
+            const blockpos = math.ecast(i32, @floor(under_cursor));
+            try state.world.placeTile(blockpos, .{.id = .block});
+            // note: for deletion, we'll have an air block you place
+            // note: todo seperate 'view' and 'render'
+            // - 'view' contains information about the player and stuff
+            //   - ie: position, camera zoom, selected object, …
+            // - 'render' renders the view
+            // - these are pretty tightly coupled but not identical
+            // note: placeblock isn't this simple
+            // if there are multiple possible things this block could be attached to,
+            // you'll be asked to select one first or something.
+            // we probably won't just merge them all together.
+            // todo: highlight the currently selected group of objects
         }
-
-        try renderer.renderFrame(curr_timestamp);
-
-        platform.present();
+    }else if(event.type == c.SDL_MOUSEMOTION and state.platform.mouse_captured) {
+        const mod_state = c.SDL_GetModState();
+        const shift_down = (mod_state & c.KMOD_LSHIFT != 0) or (mod_state & c.KMOD_RSHIFT != 0);
+        // we want to move based on the current scale
+        const minsz = @intToFloat(f64, std.math.min(state.platform.window_size[x], state.platform.window_size[y]));
+        const vec = math.Vec2f{
+            @intToFloat(f64, event.motion.xrel) / minsz * 2 / state.renderer.camera_scale(),
+            @intToFloat(f64, event.motion.yrel) / minsz * 2 / state.renderer.camera_scale(),
+        };
+        if(shift_down) {
+            state.renderer.camera_pos[math.z] -= vec[math.y] / render.tile_height * render.tile_height;
+            // "/ 0.2" if you want it to be 1:1 mouse pixel to screen pixel
+            // excluding that, it is 1:5 mouse pixel to screen pixel
+            log.info("cam height: {d}", .{state.renderer.camera_pos[math.z]});
+        }else{
+            state.renderer.camera_pos += math.join(f64, .{vec, 0.0});
+        }
+    }else if(event.type == c.SDL_KEYDOWN) {
+        switch(event.key.keysym.sym) {
+            c.SDLK_ESCAPE => {
+                try state.platform.stopCaptureMouse();
+            },
+            'f' => {
+                state.fullscreen =! state.fullscreen;
+                state.platform.setFullscreen(state.fullscreen) catch {
+                    state.fullscreen =! state.fullscreen;
+                };
+            },
+            'r' => {
+                state.renderer.recompileShaders() catch |e| {
+                    log.err("Failed to recompile shaders: {}", .{e});
+                };
+            },
+            c.SDLK_RIGHT => {
+                state.world.physicsStep();
+                log.info("Step", .{});
+            },
+            else => {},
+        }
+    }else if(event.type == c.SDL_MOUSEWHEEL) {
+        state.renderer.camera_scale_factor += event.wheel.preciseY;
+        // ^ why is it backwards on mac?
+        // max zoom in: 22
+        // max zoom out: -13
+        if(state.renderer.camera_scale_factor > 22) state.renderer.camera_scale_factor = 22;
+        if(state.renderer.camera_scale_factor < -13) state.renderer.camera_scale_factor = -13;
+        std.log.info("mwheel {d}", .{state.renderer.camera_scale_factor});
     }
+    // if(event.type == c.SDL_MULTIGESTURE) {
+    //     // rotation: dTheta, zoom: dDist
+    //     // it doesn't include scroll
+
+    //     // weird, it gives physical location on the trackpad normalized from 0 to 1
+    //     log.info("zoom {d} {d} {d} {d}", .{event.mgesture.dDist, event.mgesture.dDist, event.mgesture.x, event.mgesture.y});
+    // }
+}
+fn onRender(state: *State) !void {
+    const curr_timestamp = std.time.milliTimestamp();
+
+    if(global_allocator == null) {
+        return error.NoGlobalAllocator;
+    }
+
+    try state.renderer.renderFrame(@intToFloat(f64, curr_timestamp));
+
+    state.platform.present();
 }

@@ -10,6 +10,13 @@ pub const c = @cImport({
 });
 const log = std.log.scoped(.sdl);
 
+pub fn pollEvent() ?c.SDL_Event {
+    var event: c.SDL_Event = undefined;
+    if(c.SDL_PollEvent(&event) == 0) return null;
+
+    return event;
+}
+
 pub fn sewrap(return_value: c_int) !void {
     if(return_value != 0) {
         log.err("SDL Error: {s}", .{std.mem.span(c.SDL_GetError())});
@@ -35,7 +42,7 @@ pub fn createCompileShader(kind: c_uint, source: []const u8) !c_uint {
         defer allocator().free(err_log);
 
         var str_len: c.GLint = undefined;
-	    c.glGetShaderInfoLog(shader, @intCast(c.GLint, err_log.len), &str_len, err_log.ptr);
+        c.glGetShaderInfoLog(shader, @intCast(c.GLint, err_log.len), &str_len, err_log.ptr);
 
         log.err("GL Error: Shader compilation failed", .{});
 

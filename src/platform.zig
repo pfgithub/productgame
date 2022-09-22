@@ -16,36 +16,19 @@ extern fn enable_inertial_scroll() void;
 
 pub const Platform = struct {
     window: *c.SDL_Window,
+    gl_context: c.SDL_GLContext,
 
     window_size: math.Vec2i,
     mouse_captured: bool = false,
     capture_enterpos: math.Vec2f = math.Vec2f{0, 0},
 
-    pub fn init() !Platform {
+    pub fn init(window: *c.SDL_Window) !Platform {
         var runtime_version: c.SDL_version = undefined;
         c.SDL_GetVersion(&runtime_version);
         log.info("sdl ver: {d}.{d}.{d} (compiled for {d}.{d}.{d})", .{
             runtime_version.major, runtime_version.minor, runtime_version.patch,
             c.SDL_MAJOR_VERSION, c.SDL_MINOR_VERSION, c.SDL_PATCHLEVEL,
         });
-
-        try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
-
-        // - for mac trackpad gestures
-        // if(c.SDL_SetHint( c.SDL_HINT_MOUSE_TOUCH_EVENTS, "1" ) == c.SDL_FALSE) {
-        //     log.info("Emouse_touch_events 0?", .{});
-        // }
-
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_DOUBLEBUFFER, 1 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_ACCELERATED_VISUAL, 1 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_RED_SIZE, 8 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_GREEN_SIZE, 8 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_BLUE_SIZE, 8 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_ALPHA_SIZE, 8 ));
-
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MAJOR_VERSION, 3 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MINOR_VERSION, 2 ));
-        try sdl.sewrap(c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_PROFILE_MASK, c.SDL_GL_CONTEXT_PROFILE_CORE ));
 
         const multisample = @import("builtin").os.tag != .macos; // it's not working on mac for some reason?
         // it slows the rendering down but doesn't display the multisampled output
@@ -54,17 +37,12 @@ pub const Platform = struct {
             try sdl.sewrap(c.SDL_GL_SetAttribute(c.SDL_GL_MULTISAMPLESAMPLES, 16));
         }
 
-        var window_size = math.Vec2i{1920 / 2, 1080 / 2};
-        const window: *c.SDL_Window = c.SDL_CreateWindow(
-            "Productgame",
-            c.SDL_WINDOWPOS_CENTERED,
-            c.SDL_WINDOWPOS_CENTERED,
-            window_size[x],
-            window_size[y],
-            c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_SHOWN | c.SDL_WINDOW_RESIZABLE,
-        ) orelse unreachable;
-        const context: c.SDL_GLContext = c.SDL_GL_CreateContext(window);
-        _ = context;
+        var winsz_w: c_int = 0;
+        var winsz_h: c_int = 0;
+        c.SDL_GetWindowSize(window, &winsz_w, &winsz_h);
+        var window_size = math.Vec2i{winsz_w, winsz_h};
+
+        const gl_context: c.SDL_GLContext = c.SDL_GL_CreateContext(window);
 
         if(@import("builtin").os.tag == .macos) {
             enable_inertial_scroll();
@@ -72,6 +50,7 @@ pub const Platform = struct {
 
         return .{
             .window = window,
+            .gl_context = gl_context,
             .window_size = window_size,
         };
     }
@@ -99,10 +78,11 @@ pub const Platform = struct {
         try sdl.sewrap(c.SDL_SetWindowFullscreen(platform.window, if(fullscreen) c.SDL_WINDOW_FULLSCREEN_DESKTOP else 0));
     }
 
-    pub fn pollEvent(platform: *Platform) ?c.SDL_Event {
-        var event: c.SDL_Event = undefined;
-        if(c.SDL_PollEvent(&event) == 0) return null;
+    pub fn present(platform: *Platform) void {
+        c.SDL_GL_SwapWindow(platform.window);
+    }
 
+    pub fn updateWithEvent(platform: *Platform, event: c.SDL_Event) void {
         if(event.type == c.SDL_WINDOWEVENT) {
             if(event.window.event == c.SDL_WINDOWEVENT_RESIZED) {
                 platform.window_size = math.Vec2i{
@@ -111,11 +91,5 @@ pub const Platform = struct {
                 };
             }
         }
-
-        return event;
-    }
-
-    pub fn present(platform: *Platform) void {
-        c.SDL_GL_SwapWindow(platform.window);
     }
 };
