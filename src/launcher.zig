@@ -75,6 +75,15 @@ pub fn main() !void {
     const get_app = lib.lookup(*const fn() callconv(.C) shared.App, "pg_get_app") orelse return error.BadDynlib;
     const app = get_app();
 
+    // LOADING NEW VERSION:
+    // - newlib = try std.DynLib.open(libname);
+    // - get_app = …
+    // - app = get_app();
+    // - app.initReplace(app_data_ptr)
+    // - oldlib.close();
+    //
+    // note there might be an issue because the file name doesn't change
+
     const launcher_data: shared.LauncherData = .{
         .window = window,
     };

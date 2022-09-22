@@ -57,6 +57,10 @@ fn extern_onRender(data: usize) callconv(.C) void {
     const state = @intToPtr(*State, data);
     onRender(state) catch @panic("todo pass through errors");
 }
+fn extern_initReplace(data: usize) callconv(.C) void {
+    const state = @intToPtr(*State, data);
+    initReplace(state);
+}
 
 export fn pg_get_app() callconv(.C) shared.App {
     return .{
@@ -64,7 +68,12 @@ export fn pg_get_app() callconv(.C) shared.App {
         .deinit = &extern_deinit,
         .onEvent = &extern_onEvent,
         .onRender = &extern_onRender,
+        .initReplace = &extern_initReplace,
     };
+}
+
+fn initReplace(state: *State) void {
+    global_allocator = state.gpa.allocator();
 }
 
 fn init(launcher_data: *const shared.LauncherData, state: *State) !void {

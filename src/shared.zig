@@ -9,5 +9,6 @@ pub const App = extern struct {
     deinit: *const fn(data: usize) callconv(.C) void,
     onEvent: *const fn(data: usize, event: *const c.SDL_Event) callconv(.C) void,
     onRender: *const fn(data: usize) callconv(.C) void,
+    initReplace: *const fn(data: usize) callconv(.C) void,
     // setupGlobalState: *fn(data: *anyopaque) void,
 };
