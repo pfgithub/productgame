@@ -35,6 +35,7 @@ const State = struct {
     }
 
     gpa: std.heap.GeneralPurposeAllocator(.{}),
+    launcher_data: *const shared.LauncherData,
     platform: plat.Platform,
     world: game.World,
     renderer: render.Renderer,
@@ -77,8 +78,19 @@ fn initReplace(state: *State) void {
 }
 
 fn init(launcher_data: *const shared.LauncherData, state: *State) !void {
+    state.* = .{
+        .gpa = undefined,
+        .launcher_data = undefined,
+        .platform = undefined,
+        .world = undefined,
+        .renderer = undefined,
+        .fullscreen = undefined,
+    };
+
     state.gpa = std.heap.GeneralPurposeAllocator(.{}){};
     global_allocator = state.gpa.allocator();
+
+    state.launcher_data = launcher_data;
 
     state.platform = try plat.Platform.init(launcher_data.window);
 
@@ -239,6 +251,9 @@ fn onEvent(state: *State, event: c.SDL_Event) !void {
             c.SDLK_ESCAPE => {
                 try state.platform.stopCaptureMouse();
             },
+            'q' => {
+                log.info("q pressed!", .{});
+            },
             'f' => {
                 state.fullscreen =! state.fullscreen;
                 state.platform.setFullscreen(state.fullscreen) catch {
@@ -246,9 +261,15 @@ fn onEvent(state: *State, event: c.SDL_Event) !void {
                 };
             },
             'r' => {
-                state.renderer.recompileShaders() catch |e| {
-                    log.err("Failed to recompile shaders: {}", .{e});
-                };
+                const mod_state = c.SDL_GetModState();
+                const shift_down = (mod_state & c.KMOD_LSHIFT != 0) or (mod_state & c.KMOD_RSHIFT != 0);
+                if(shift_down) {
+                    state.launcher_data.reload();
+                }else {
+                    state.renderer.recompileShaders() catch |e| {
+                        log.err("Failed to recompile shaders: {}", .{e});
+                    };
+                }
             },
             c.SDLK_RIGHT => {
                 state.world.physicsStep();

@@ -3,6 +3,7 @@ const c = @import("sdl.zig").c;
 pub const LauncherData = extern struct {
     // ie the refresh function
     window: *c.SDL_Window,
+    reload: *const fn() callconv(.C) void,
 };
 pub const App = extern struct {
     init: *const fn(launcher_data: *const LauncherData) callconv(.C) usize,

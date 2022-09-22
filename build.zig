@@ -24,7 +24,9 @@ pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
-    const exe = b.addSharedLibrary("productgame", "src/main.zig", .unversioned);
+    const verstr = b.option([]const u8, "gamever", "for the launcher to use") orelse "nover";
+
+    const exe = b.addSharedLibrary(b.fmt("productgame-{s}", .{verstr}), "src/main.zig", .unversioned);
     libcfg(b, exe, target, mode);
 
     const exe_install = b.addInstallArtifact(exe);

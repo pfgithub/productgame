@@ -24,7 +24,7 @@ pub fn allocator() std.mem.Allocator {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if(gpa.deinit()) unreachable;
-    const launcher_alloc = gpa.allocator();
+    ls.alloc = gpa.allocator();
 
     try sdl.sewrap(c.SDL_Init(c.SDL_INIT_VIDEO));
 
@@ -56,39 +56,16 @@ pub fn main() !void {
 
     // TODO: display a loader while compiling the app
 
-    var process = std.ChildProcess.init(&.{"zig", "build", "game"}, launcher_alloc);
-    const res = try process.spawnAndWait();
-    if(res != .Exited or res.Exited != 0) return error.BuildFailed;
-
-    const libname = switch (@import("builtin").os.tag) {
-        .linux, .freebsd, .openbsd => "zig-out/lib/libproductgame.so",
-        .windows => "zig-out/lib/libproductgame.dll",
-        .macos, .tvos, .watchos, .ios => "zig-out/lib/libproductgame.dylib",
-        else => @compileError("unsupported target"),
-    };
-    var lib = try std.DynLib.open(libname);
-    defer lib.close();
-    // when loading a new version:
-    // 1. open the new dynlib
-    // 2. call a 'onCreate' function with its data pointer so it can set its internal state
-    // 3. close the old dynlib
-    const get_app = lib.lookup(*const fn() callconv(.C) shared.App, "pg_get_app") orelse return error.BadDynlib;
-    const app = get_app();
-
-    // LOADING NEW VERSION:
-    // - newlib = try std.DynLib.open(libname);
-    // - get_app = …
-    // - app = get_app();
-    // - app.initReplace(app_data_ptr)
-    // - oldlib.close();
-    //
-    // note there might be an issue because the file name doesn't change
 
     const launcher_data: shared.LauncherData = .{
         .window = window,
+        .reload = &extern_reload,
     };
-    const app_data_ptr = app.init(&launcher_data);
-    defer app.deinit(app_data_ptr);
+
+    try reload();
+    defer ls.lib.?.close();
+    ls.data_ptr = ls.app.init(&launcher_data);
+    defer ls.app.deinit(ls.data_ptr);
 
     while(true) {
         const curr_timestamp = @intToFloat(f64, std.time.milliTimestamp());
@@ -98,9 +75,64 @@ pub fn main() !void {
             if(event.type == c.SDL_QUIT) {
                 return;
             }
-            app.onEvent(app_data_ptr, &event);
+            ls.app.onEvent(ls.data_ptr, &event);
         }
 
-        app.onRender(app_data_ptr);
+        ls.app.onRender(ls.data_ptr);
     }
+}
+
+var ls: LauncherState = .{};
+
+const LauncherState = struct {
+    app: shared.App = undefined,
+    lib: ?std.DynLib = null,
+    data_ptr: usize = undefined,
+    alloc: std.mem.Allocator = undefined,
+    ver: usize = 0,
+};
+
+fn extern_reload() callconv(.C) void {
+    reload() catch {
+        @panic("todo passthrough error");
+    };
+}
+
+fn reload() !void {
+    if(ls.lib != null) {
+        log.info("Reloading app", .{});
+    }
+
+    ls.ver += 1;
+    const ourver = ls.ver;
+    const verfmt = try std.fmt.allocPrint(ls.alloc, "-Dgamever={d}", .{ourver});
+    defer ls.alloc.free(verfmt);
+
+    var process = std.ChildProcess.init(&.{"zig", "build", "game", verfmt}, ls.alloc);
+    const res = try process.spawnAndWait();
+    if(res != .Exited or res.Exited != 0) return error.BuildFailed;
+
+    const libext = switch (@import("builtin").os.tag) {
+        .linux, .freebsd, .openbsd => "so",
+        .windows => "dll",
+        .macos, .tvos, .watchos, .ios => "dylib",
+        else => @compileError("unsupported target"),
+    };
+    const libfile = try std.fmt.allocPrint(ls.alloc, "zig-out/lib/libproductgame-{d}.{s}", .{ourver, libext});
+    defer ls.alloc.free(libfile);
+    var lib = try std.DynLib.open(libfile);
+
+    const get_app = lib.lookup(*const fn() callconv(.C) shared.App, "pg_get_app") orelse return error.BadDynlib;
+    ls.app = get_app();
+
+    if(ls.lib) |*prev_lib| {
+        ls.app.initReplace(ls.data_ptr);
+        // prev_lib.close();
+        _ = prev_lib; // oh, we can't close it because we use some pointers to data in the previous lib I guess
+        // strings would do that but I don't think I save any? not sure what it is then
+        log.info("✓ Reloaded", .{});
+    }else{
+        // it is the caller's job to initialize app
+    }
+    ls.lib = lib;
 }
