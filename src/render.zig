@@ -118,30 +118,11 @@ const TileShader = struct {
     );
 };
 
-fn srcStr(comptime srcloc: std.builtin.SourceLocation) []const u8 {
-    return "#line " ++ intStr(srcloc.line + 1) ++ " \"" ++ srcloc.file ++ "\"";
-}
-fn intStr(comptime int_: comptime_int) []const u8 {
-    var int = int_;
-    var res: []const u8 = "";
-    if(int < 0) {
-        res = "-" ++ res;
-        int = -int;
-    }
-    if(int == 0) {
-        res = res ++ "0";
-    } else while(int > 0) {
-        const digit = int % 10;
-        int /= 10;
-        res = res ++ &[_]u8{digit + '0'};
-    }
-    return res;
-}
 const tile_ids_code = blk: {
     var res: []const u8 = "#line 0 4000\n";
     // std.fmt.comptimePrint
     for(std.meta.tags(game.TileID)) |tile_id| {
-        res = res ++ "#define TILE_" ++ @tagName(tile_id) ++ " " ++ intStr(@enumToInt(tile_id)) ++ "u\n";
+        res = res ++ std.fmt.comptimePrint("#define TILE_{s} {d}u\n", .{@tagName(tile_id), @enumToInt(tile_id)});
     }
     res = res ++ "#define CONST_height " ++ tile_height_str ++ "\n";
     break :blk res;
