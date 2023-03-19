@@ -1,3 +1,13 @@
+## metrics
+
+zachtronics style histograms
+
+measure:
+
+- latency (time from start to first product)
+- throughput (time from first product to next product, avg over 100 completions)
+- cost (blocks will have a cost value, sum of those)
+
 ## interactions
 
 hold shift to change vertical layers. it multiplies your y mouse speed by 0.2, disables x mouse
